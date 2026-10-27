@@ -35,13 +35,34 @@ pub(super) fn run_timed_until(
     if cancelled() {
         return Err(io::Error::new(io::ErrorKind::Interrupted, "scan cancelled"));
     }
-    let child = Command::new(program)
+    let mut command = Command::new(program);
+    command
         .args(args)
         .env("LC_ALL", "C")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+        .stderr(Stdio::piped());
+    // Linux can briefly report ETXTBSY when another concurrently forked child
+    // inherited a writable descriptor for a freshly written helper. Retry only
+    // this transient spawn failure; never retry an executed helper.
+    let mut attempts = 0;
+    let child = loop {
+        match command.spawn() {
+            Ok(child) => break child,
+            Err(error) => {
+                if cfg!(target_os = "linux")
+                    && error.raw_os_error() == Some(26)
+                    && attempts < 20
+                    && !cancelled()
+                {
+                    attempts += 1;
+                    std::thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                return Err(error);
+            }
+        }
+    };
     let mut child = super::ChildGuard(Some(child));
     let process = child.0.as_mut().unwrap();
     let stdout = process.stdout.take().unwrap();
@@ -404,6 +425,28 @@ fn parse_iw_channels(text: &str) -> Vec<u16> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn retries_transient_busy_executable_before_running_helper() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        let dir = super::super::tests::TestDir::new();
+        let path = dir.0.join("helper");
+        let mut file = std::fs::File::create(&path).unwrap();
+        writeln!(file, "#!/bin/sh\nprintf done").unwrap();
+        file.flush().unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let closer = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(60));
+            drop(file);
+        });
+        let output =
+            super::run_timed_until(&path, &[], std::time::Duration::from_secs(2), || false)
+                .unwrap();
+        closer.join().unwrap();
+        assert_eq!(output, "done");
+    }
+    #[cfg(unix)]
     #[test]
     fn cancellation_interrupts_helper_wait() {
         let start = std::time::Instant::now();
