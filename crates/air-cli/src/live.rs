@@ -135,7 +135,10 @@ fn absolute(path: &Path) -> Result<PathBuf> {
 }
 
 fn create_session(path: &Path) -> Result<()> {
+    #[cfg(unix)]
     let mut builder = fs::DirBuilder::new();
+    #[cfg(not(unix))]
+    let builder = fs::DirBuilder::new();
     #[cfg(unix)]
     {
         use std::os::unix::fs::DirBuilderExt;
