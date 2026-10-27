@@ -12,6 +12,8 @@ const MAX_RECORD: usize = 65535;
 
 #[derive(Clone, Debug, Default)]
 pub struct AccessPoint {
+    pub enterprise: crate::enterprise::EapAudit,
+    pub roaming_capabilities: Option<crate::roaming::Capabilities>,
     pub ssid: Vec<u8>,
     pub channel: Option<u16>,
     pub signal: Option<i8>,
@@ -149,6 +151,7 @@ pub struct Survey {
     pub ignored: u64,
     pub evicted: u64,
     pub quality: CaptureQuality,
+    pub roaming: crate::roaming::Diagnostics,
     pub rnr_neighbors: BTreeMap<NeighborKey, NeighborObservation>,
     last_timestamp: Option<Duration>,
     tracker: crate::survey_handshake::Tracker,
@@ -362,6 +365,16 @@ impl Survey {
         self.rnr_neighbors
             .retain(|_, n| now.saturating_sub(n.last_seen) <= age);
     }
+    fn invalidate_advertisement(&mut self, mac: Mac, now: Duration) -> Option<()> {
+        let ap = self.aps.get_mut(&mac)?;
+        ap.roaming_capabilities = None;
+        ap.audit_last_status = Some("malformed");
+        ap.audit_malformed += 1;
+        ap.security = "Unknown".into();
+        ap.packets += 1;
+        ap.last_seen = now;
+        Some(())
+    }
     fn ap(&mut self, mac: Mac) -> &mut AccessPoint {
         if self.aps.len() >= MAX_ROWS && !self.aps.contains_key(&mac) {
             if let Some(old) = self
@@ -449,6 +462,10 @@ impl Survey {
         } else {
             self.quality.fcs_unknown += 1;
         }
+        let management_observed = radio(dlt, bytes).is_some_and(|r| {
+            self.roaming
+                .observe(r.frame, self.packets, timestamp, now, filter)
+        });
         let inventoried = self
             .observe_inner(dlt, bytes, now, timestamp, filter)
             .is_some();
@@ -468,6 +485,15 @@ impl Survey {
             if let Some((ap, sta, from_ap)) = frame.endpoints() {
                 if unicast(ap) && unicast(sta) && ap != sta && !filter.is_some_and(|m| m != ap) {
                     if let Some(payload) = frame.payload.strip_prefix(&air_frames::LLC_EAPOL) {
+                        if frame.frame_control & 0x0300 != 0x0300 && payload.get(1) == Some(&0) {
+                            let row = self.ap(ap);
+                            row.enterprise.observe(payload, from_ap);
+                            if !inventoried {
+                                row.packets += 1;
+                                row.last_seen = now;
+                                attributed = true;
+                            }
+                        }
                         if payload.get(1) == Some(&3) {
                             let key = air_handshake::parse_eapol_key(payload);
                             let row = self.ap(ap);
@@ -514,7 +540,7 @@ impl Survey {
                 ap.packets += 1;
                 ap.last_seen = now;
             }
-        } else if !inventoried && !attributed {
+        } else if !inventoried && !attributed && !management_observed {
             self.ignored += 1;
         }
     }
@@ -544,21 +570,13 @@ impl Survey {
             if !unicast(a3) || a2 != a3 || filter.is_some_and(|m| m != a3) {
                 return None;
             }
-            let fixed = frame.get(24..36)?;
-            let ies = frame.get(36..)?;
+            let Some(fixed) = frame.get(24..36) else {
+                return self.invalidate_advertisement(a3, now);
+            };
+            let ies = &frame[36..];
             let adv = match advertisement(ies) {
                 Some(adv) => adv,
-                None => {
-                    if let Some(ap) = self.aps.get_mut(&a3) {
-                        ap.audit_last_status = Some("malformed");
-                        ap.audit_malformed += 1;
-                        ap.security = "Unknown".into();
-                        ap.packets += 1;
-                        ap.last_seen = now;
-                        return Some(());
-                    }
-                    return None;
-                }
+                None => return self.invalidate_advertisement(a3, now),
             };
             let mut neighbors = Vec::new();
             let mut malformed_rnr = 0u64;
@@ -589,7 +607,9 @@ impl Survey {
             let privacy = fixed[10] & 0x10 != 0;
             let record_index = self.packets;
             let parsed = security_audit::parse(&frame[36..], privacy);
+            let roaming_capabilities = crate::roaming::capabilities(ies).ok();
             let ap = self.ap(a3);
+            ap.roaming_capabilities = roaming_capabilities;
             if !adv.ssid.is_empty() {
                 ap.ssid = adv.ssid;
             }
@@ -624,6 +644,7 @@ impl Survey {
                     ap.audit_last_status = Some("valid");
                 }
                 Err(()) => {
+                    ap.roaming_capabilities = None;
                     ap.audit_last_status = Some("malformed");
                     ap.audit_malformed += 1;
                     ap.security = "Unknown".into();

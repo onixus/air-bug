@@ -193,6 +193,17 @@ otherwise manual selection cycles the adapter's available channels. Without chan
 options, capture initially holds the existing channel. `--plain` prints periodic
 text snapshots for noninteractive use. `--read` always prints one offline snapshot.
 
+### Enterprise audit and roaming diagnostics
+
+`survey` also observes outer 802.1X/EAP metadata, advertised Enterprise AKMs and
+802.11k/v/FT capabilities, plus a bounded management-event journal with
+reassociation status, disconnect reasons and FT authentication algorithm.
+Plain output, TUI and JSON/CSV exports include these diagnostics automatically.
+No identities or EAP payloads are retained in audit fields/exports; saved PCAPs
+still contain original packets. EAP counts aggregate across peers per BSSID;
+management observations do not prove completed roaming or outage duration.
+See [Enterprise and roaming scope, usage and validation](docs/ENTERPRISE_ROAMING.ru.md).
+
 ### Captured handshake / PMKID indicator
 
 The AP table's **Evidence** column shows `HS`, `FT`, `PMKID`, `HS+PMKID` or `-`.

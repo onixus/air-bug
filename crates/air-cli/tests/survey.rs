@@ -358,3 +358,109 @@ fn survey_audits_configuration_and_capture_quality_in_exports() {
     assert!(String::from_utf8_lossy(&result.stdout).contains("Recommendation:"));
     assert!(text.contains("audit_recommendations"));
 }
+
+#[test]
+fn enterprise_and_roaming_are_visible_in_plain_json_csv_without_identity() {
+    let temp = TempDir::new();
+    let capture = temp.path("enterprise.pcap");
+    let json = temp.path("enterprise.json");
+    let csv = temp.path("enterprise.csv");
+    let ap = [2, 0, 0, 0, 0, 1];
+    let sta = [2, 0, 0, 0, 0, 3];
+    let frame = |fc: u16, a1: [u8; 6], a2: [u8; 6], p: &[u8]| {
+        let mut f = fc.to_le_bytes().to_vec();
+        f.extend([0; 2]);
+        f.extend(a1);
+        f.extend(a2);
+        f.extend(ap);
+        f.extend([0; 2]);
+        f.extend(p);
+        f
+    };
+    let mut beacon = vec![0; 12];
+    beacon[10] = 0x10;
+    beacon.extend([
+        48, 20, 1, 0, 0, 15, 172, 4, 1, 0, 0, 15, 172, 4, 1, 0, 0, 15, 172, 1, 0x80, 0,
+    ]);
+    beacon.extend([54, 3, 0x12, 0x34, 1]);
+    let mut eap = air_frames::LLC_EAPOL.to_vec();
+    eap.extend([2, 0, 0, 10, 2, 1, 0, 10, 1, b'a', b'l', b'i', b'c', b'e']);
+    let mut request = vec![0, 0, 10, 0];
+    request.extend([2, 0, 0, 0, 0, 2]);
+    let frames = [
+        frame(0x80, [255; 6], ap, &beacon),
+        frame(0x0108, ap, sta, &eap),
+        frame(0x20, ap, sta, &request),
+        frame(0x30, sta, ap, &[0, 0, 17, 0, 0, 0]),
+    ];
+    let mut file = vec![0xd4, 0xc3, 0xb2, 0xa1, 2, 0, 4, 0];
+    file.extend([0; 8]);
+    file.extend(65535u32.to_le_bytes());
+    file.extend(105u32.to_le_bytes());
+    for (i, f) in frames.iter().enumerate() {
+        file.extend((i as u32).to_le_bytes());
+        file.extend([0; 4]);
+        file.extend((f.len() as u32).to_le_bytes());
+        file.extend((f.len() as u32).to_le_bytes());
+        file.extend(f);
+    }
+    std::fs::write(&capture, file).unwrap();
+    let result = cli(&[
+        "survey",
+        "--read",
+        &capture,
+        "--export-json",
+        &json,
+        "--export-csv",
+        &csv,
+    ]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let plain = String::from_utf8_lossy(&result.stdout);
+    assert!(plain.contains("enterprise_advertised"));
+    assert!(plain.contains("reassociation_request"));
+    assert!(plain.contains("status=17"));
+    assert!(!plain.contains("alice"));
+    let raw = std::fs::read_to_string(json).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    assert_eq!(
+        v["access_points"][0]["enterprise"]["counters"]["identity_responses"],
+        1
+    );
+    assert_eq!(
+        v["access_points"][0]["roaming_capabilities"]["mobility_domain_hex"],
+        "1234"
+    );
+    assert_eq!(v["roaming_events"].as_array().unwrap().len(), 2);
+    assert_eq!(v["roaming_events"][1]["status_code"], 17);
+    assert!(!raw.contains("alice"));
+    let csv = std::fs::read_to_string(csv).unwrap();
+    assert!(csv.contains("roaming_event,"));
+    assert!(csv.contains("identity_responses"));
+    assert!(!csv.contains("alice"));
+    // Quoted JSON cells must preserve the rectangular CSV contract.
+    let counts: Vec<_> = csv
+        .lines()
+        .map(|line| {
+            let mut quoted = false;
+            let mut count = 1;
+            let mut chars = line.chars().peekable();
+            while let Some(c) = chars.next() {
+                if c == '"' {
+                    if quoted && chars.peek() == Some(&'"') {
+                        chars.next();
+                    } else {
+                        quoted = !quoted;
+                    }
+                } else if c == ',' && !quoted {
+                    count += 1;
+                }
+            }
+            count
+        })
+        .collect();
+    assert!(counts.iter().all(|c| *c == 46));
+}

@@ -69,6 +69,7 @@ fn snapshot(data: &Survey, elapsed: Duration) -> Value {
         "beacons": ap.beacons, "packets": ap.packets, "age_seconds": elapsed.saturating_sub(ap.last_seen).as_secs_f64(),
         "security_audit": { "last_status": ap.audit_last_status, "malformed_advertisements": ap.audit_malformed, "changed": ap.audit_changed, "last_valid": ap.security_audit, "current_assessment": ap.security_audit.as_ref().filter(|_| ap.audit_last_status == Some("valid")).map(|a| &a.advertised.assessment) },
         "capture_diagnostics": { "counters": ap.capture, "observations": ap.capture_observations(), "scope": "EAPOL counts are per BSSID and may belong to different peers or exchanges" },
+        "enterprise": { "counters": ap.enterprise, "observations": ap.enterprise.observations(), "type_names": ap.enterprise.type_names() }, "roaming_capabilities": ap.roaming_capabilities,
         "ft":ap.ft, "handshake_m1m2": ap.handshake_m1m2, "handshake_m2m3": ap.handshake_m2m3, "handshake_m3m4":ap.handshake_m3m4, "pmkid": ap.pmkid,
     })).collect();
     let stations: Vec<_> = data.stations.iter().map(|(mac, sta)| json!({
@@ -81,6 +82,10 @@ fn snapshot(data: &Survey, elapsed: Duration) -> Value {
         "packets": data.packets, "ignored": data.ignored, "evicted": data.evicted,
         "verification_pending_evicted": data.verification_evicted(),
         "capture_quality": data.quality,
+        "roaming_events": data.roaming.events,
+        "roaming_diagnostics": { "evicted": data.roaming.evicted, "malformed_management": data.roaming.malformed_management },
+        "enterprise_scope": "Per-BSSID aggregate outer EAP types and frame counts across peers/exchanges, including retries; no identities or payloads retained. Success/failure frames are unauthenticated and do not prove network access. Inner methods, certificate validation and RADIUS policy are unknown.",
+        "roaming_scope": "Last 512 unprotected unicast management observations in input order, including retries; not proof of association, same ESS, completed roam or outage duration. Capture timestamps may be absent/regress. Events survive AP row expiry. No 802.11k/v action decoding.",
         "capture_quality_scope": "All input records before BSSID filtering; counters do not estimate packet loss. FCS flags are driver reports, not computed checksums.",
         "security_audit_scope": "Last valid unfragmented beacon or probe response; advertised, not negotiated or authenticated. A malformed later advertisement makes the current state unknown.",
         "verification_scope": "Personal Wi-Fi EAPOL/FT and PSK PMKID; structural evidence only, password/MIC not verified; SAE requires an exported PMK",
@@ -110,7 +115,7 @@ fn optional(value: Option<impl ToString>) -> String {
     value.map(|v| v.to_string()).unwrap_or_default()
 }
 fn write_csv(out: &mut File, data: &Survey, elapsed: Duration) -> Result<()> {
-    writeln!(out, "kind,mac,last_bssid,ssid,ssid_hex,channel,signal_dbm,security,beacons,packets,age_seconds,handshake_m1m2,handshake_m2m3,pmkid,probe_ssid,probe_ssid_hex,ft,handshake_m3m4,audit_status,pmf,akms,ciphers,security_observations,audit_changed,audit_malformed,retry_frames,fragmented_frames,eapol_m1,eapol_m2,eapol_m3,eapol_m4,eapol_unparsed,capture_observations,advertised_mode,audit_findings,audit_recommendations,origin_kind,reporter_bssid,band,frequency_mhz,operating_class,short_ssid,record_index")?;
+    writeln!(out, "kind,mac,last_bssid,ssid,ssid_hex,channel,signal_dbm,security,beacons,packets,age_seconds,handshake_m1m2,handshake_m2m3,pmkid,probe_ssid,probe_ssid_hex,ft,handshake_m3m4,audit_status,pmf,akms,ciphers,security_observations,audit_changed,audit_malformed,retry_frames,fragmented_frames,eapol_m1,eapol_m2,eapol_m3,eapol_m4,eapol_unparsed,capture_observations,advertised_mode,audit_findings,audit_recommendations,origin_kind,reporter_bssid,band,frequency_mhz,operating_class,short_ssid,record_index,enterprise,roaming_capabilities,roaming_event")?;
     for (mac, ap) in &data.aps {
         let advertised = ap
             .security_audit
@@ -212,6 +217,11 @@ fn write_csv(out: &mut File, data: &Survey, elapsed: Duration) -> Result<()> {
             String::new(),
             optional(origin.map(|o| o.record_index)),
         ]);
+        fields.extend([
+            text(&serde_json::to_string(&json!({"counters": ap.enterprise, "observations": ap.enterprise.observations(), "type_names": ap.enterprise.type_names()}))?),
+            text(&serde_json::to_string(&ap.roaming_capabilities)?),
+            String::new(),
+        ]);
         writeln!(out, "{}", fields.join(","))?;
     }
     for (mac, sta) in &data.stations {
@@ -258,11 +268,11 @@ fn write_csv(out: &mut File, data: &Survey, elapsed: Duration) -> Result<()> {
             String::new(),
         ];
         let mut fields = fields.to_vec();
-        fields.extend(std::iter::repeat_n(String::new(), 10));
+        fields.extend(std::iter::repeat_n(String::new(), 13));
         writeln!(out, "{}", fields.join(","))?;
     }
     for r in data.rnr_neighbors.values() {
-        let mut fields = vec![String::new(); 43];
+        let mut fields = vec![String::new(); 46];
         fields[0] = "rnr".into();
         fields[1] = r
             .neighbor
@@ -279,6 +289,15 @@ fn write_csv(out: &mut File, data: &Survey, elapsed: Duration) -> Result<()> {
         fields[40] = r.neighbor.operating_class.to_string();
         fields[41] = optional(r.neighbor.short_ssid);
         fields[42] = r.origin.record_index.to_string();
+        writeln!(out, "{}", fields.join(","))?;
+    }
+    for event in &data.roaming.events {
+        let mut fields = vec![String::new(); 46];
+        fields[0] = "roaming_event".into();
+        fields[1] = text(&event.station);
+        fields[2] = text(&event.bssid);
+        fields[42] = event.record_index.to_string();
+        fields[45] = text(&serde_json::to_string(event)?);
         writeln!(out, "{}", fields.join(","))?;
     }
     Ok(())

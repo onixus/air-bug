@@ -166,6 +166,15 @@ impl Viewer {
                             .map(|r| r.frequency_mhz)
                     )
                 )?;
+                writeln!(
+                    out,
+                    "  {} | {}",
+                    ap.enterprise.summary(),
+                    ap.enterprise.observations().join(";")
+                )?;
+                if let Some(caps) = &ap.roaming_capabilities {
+                    writeln!(out, "  Roaming advertisement: {}", caps.summary())?;
+                }
                 if let Some(audit) = ap
                     .security_audit
                     .as_ref()
@@ -184,6 +193,10 @@ impl Viewer {
                         )?;
                     }
                 }
+            }
+            writeln!(out, "Roaming management observations: {} retained, {} evicted, {} malformed (unauthenticated; retries included)", self.data.roaming.events.len(), self.data.roaming.evicted, self.data.roaming.malformed_management)?;
+            for e in &self.data.roaming.events {
+                writeln!(out, "  #{} {} AP={} client={} previous={} status={} reason={} auth={} sequence={} retry={} capture_s={}", e.record_index, e.kind, e.bssid, e.station, e.previous_bssid.as_deref().unwrap_or("?"), optional(e.status_code), optional(e.reason_code), optional(e.authentication_algorithm), optional(e.authentication_sequence), e.retry, optional(e.capture_timestamp_seconds))?;
             }
             if !self.data.rnr_neighbors.is_empty() {
                 writeln!(out, "RNR (reported, not directly observed): BSSID\tReporter\tClass\tChannel\tBand\tMHz")?;

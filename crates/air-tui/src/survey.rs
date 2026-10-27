@@ -100,7 +100,7 @@ fn render(
         Constraint::Length(3),
         Constraint::Percentage(55),
         Constraint::Min(4),
-        Constraint::Length(2),
+        Constraint::Length(5),
         Constraint::Length(2),
     ])
     .split(f.area());
@@ -212,7 +212,7 @@ fn render(
         ))),
         areas[2],
     );
-    let details = data
+    let mut details = data
         .aps
         .iter()
         .nth(ap_offset)
@@ -248,10 +248,39 @@ fn render(
             )
         })
         .unwrap_or_else(|| "Audit and capture diagnostics: no AP observed".into());
-    f.render_widget(
-        Paragraph::new(details).wrap(ratatui::widgets::Wrap { trim: true }),
-        areas[3],
-    );
+    if let Some((_, ap)) = data.aps.iter().nth(ap_offset) {
+        details.push_str(&format!(
+            "\n{} | {}\nRoaming advertisement: {}",
+            ap.enterprise.summary(),
+            ap.enterprise.observations().join("; "),
+            ap.roaming_capabilities
+                .as_ref()
+                .map(|c| c.summary())
+                .unwrap_or_else(|| "unknown".into())
+        ));
+    }
+    details.push_str(&format!(
+        "\nRoaming: {} events, {} evicted, {} malformed (unverified)",
+        data.roaming.events.len(),
+        data.roaming.evicted,
+        data.roaming.malformed_management
+    ));
+    if let Some(e) = data.roaming.events.back() {
+        details.push_str(&format!(
+            "\n#{} {} status={} reason={} client={} AP={}",
+            e.record_index,
+            e.kind,
+            e.status_code
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "?".into()),
+            e.reason_code
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "?".into()),
+            e.station,
+            e.bssid
+        ));
+    }
+    f.render_widget(Paragraph::new(details), areas[3]);
     f.render_widget(Paragraph::new("←/→ channel (hold) · Space hop/hold · Tab table · ↑/↓ scroll · q/Esc/Ctrl-C stop\nHS/FT/PMKID: structural evidence; PMF: advertised. ? = unobserved; retry frames counted."), areas[4]);
 }
 
@@ -281,6 +310,13 @@ mod tests {
                 ..Default::default()
             },
         );
+        let mut response = vec![0x30, 0, 0, 0];
+        response.extend([2, 6, 7, 8, 9, 10]);
+        response.extend(ap);
+        response.extend(ap);
+        response.extend([0; 2]);
+        response.extend([0, 0, 17, 0, 0, 0]);
+        data.observe(105, &response, Duration::ZERO, None);
         for (w, h) in [(120, 32), (60, 12), (10, 3)] {
             let mut terminal = Terminal::new(ratatui::backend::TestBackend::new(w, h)).unwrap();
             terminal
@@ -293,6 +329,10 @@ mod tests {
                 assert!(text.contains("02:06:07:08:09:0a"));
                 assert!(text.contains("CH 6 | hold"));
                 assert!(text.contains("HS+PMKID"));
+                assert!(text.contains("EAP req/resp="));
+                assert!(text.contains("Roaming advertisement:"));
+                assert!(text.contains("Roaming: 1 events"));
+                assert!(text.contains("reassociation_response status=17 reason=?"));
             }
         }
     }

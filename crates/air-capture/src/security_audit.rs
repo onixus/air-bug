@@ -296,7 +296,28 @@ fn assess(
     let sae = rsn.is_some_and(|p| has(p, &["SAE", "FT-SAE"]));
     let psk = rsn.is_some_and(|p| has(p, &["PSK", "FT-PSK", "PSK-SHA256"]));
     let owe = rsn.is_some_and(|p| has(p, &["OWE"]));
-    let mode = if owe && sae {
+    let enterprise_names = [
+        "802.1X",
+        "FT-802.1X",
+        "802.1X-SHA256",
+        "802.1X-Suite-B",
+        "802.1X-Suite-B-192",
+        "FT-802.1X-SHA384",
+        "FILS-SHA256",
+        "FILS-SHA384",
+        "FT-FILS-SHA256",
+        "FT-FILS-SHA384",
+    ];
+    let enterprise = [rsn, wpa]
+        .into_iter()
+        .flatten()
+        .any(|p| has(p, &enterprise_names));
+    let personal = sae || psk || owe || wpa.is_some_and(|p| has(p, &["PSK"]));
+    let mode = if enterprise && personal {
+        "mixed_enterprise_personal"
+    } else if enterprise {
+        "enterprise_advertised"
+    } else if owe && sae {
         "mixed_owe_sae"
     } else if owe {
         "owe_advertised"
@@ -324,6 +345,12 @@ fn assess(
             recommendation,
         })
     };
+    if enterprise {
+        add("enterprise_configuration_unverified", "unknown", "An 802.1X-family AKM is advertised; no server or client configuration was inspected.", "Verify RADIUS policy, server certificate name/CA validation, EAP method policy and revocation in the managed supplicant configuration. Passive advertisements cannot prove these settings.");
+    }
+    if enterprise && personal {
+        add("mixed_enterprise_personal", "review", "Enterprise and personal or OWE AKMs are advertised together.", "Review the intended authentication policy and confirm the advertisement in a fresh capture.");
+    }
     if transition.is_some() {
         add("owe_transition_advertised", "info", "OWE transition element points to another BSSID; its existence and identity have not been verified.", "Review the open companion BSS; legacy clients may connect without wireless encryption. Prefer OWE-only where clients support it.");
     }
@@ -540,5 +567,34 @@ mod tests {
         assert!(parse(&dup, true).is_err());
         assert!(parse(&[244, 1, 1], true).is_err());
         assert!(parse(&[48, 4, 1, 0, 0], true).is_err());
+    }
+}
+
+#[cfg(test)]
+mod enterprise_tests {
+    use super::*;
+    #[test]
+    fn enterprise_and_mixed_modes_have_explicit_configuration_limits() {
+        let enterprise = profile(
+            &[
+                1, 0, 0, 15, 172, 4, 1, 0, 0, 15, 172, 4, 1, 0, 0, 15, 172, 1, 0x80, 0,
+            ],
+            false,
+        )
+        .unwrap();
+        let a = assess(true, Some(&enterprise), None, None);
+        assert_eq!(a.advertised_mode, "enterprise_advertised");
+        assert!(a
+            .findings
+            .iter()
+            .any(|f| f.id == "enterprise_configuration_unverified"));
+        let mut mixed = enterprise.clone();
+        mixed.akm_suites.push(suite(&[0, 15, 172, 2], true));
+        let a = assess(true, Some(&mixed), None, None);
+        assert_eq!(a.advertised_mode, "mixed_enterprise_personal");
+        assert!(a
+            .findings
+            .iter()
+            .any(|f| f.id == "mixed_enterprise_personal"));
     }
 }

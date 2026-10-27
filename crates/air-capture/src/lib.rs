@@ -381,8 +381,10 @@ impl Iterator for CaptureReader {
     }
 }
 
+pub mod enterprise;
 pub mod radio;
 pub mod rnr;
+pub mod roaming;
 pub mod security_audit;
 pub mod survey;
 
