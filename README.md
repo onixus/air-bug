@@ -203,6 +203,10 @@ No identities or EAP payloads are retained in audit fields/exports; saved PCAPs
 still contain original packets. EAP counts aggregate across peers per BSSID;
 management observations do not prove completed roaming or outage duration.
 See [Enterprise and roaming scope, usage and validation](docs/ENTERPRISE_ROAMING.ru.md).
+[Native Fedora 43 validation](docs/FEDORA_ENTERPRISE_ROAMING_VALIDATION.ru.md):
+218 Rust tests and 16 roaming/fragment cases passed, as did fmt, strict Clippy
+and release build. The VM exposed only virtual Ethernet; real radio/Enterprise
+roaming remains unverified.
 
 ### Captured handshake / PMKID indicator
 
