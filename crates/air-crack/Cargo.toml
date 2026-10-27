@@ -1,0 +1,17 @@
+[package]
+name = "air-crack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+air-core = { path = "../air-core" }
+air-handshake = { path = "../air-handshake" }
+rayon = "1.10"
+subtle = "2"
+thiserror = "2"
+
+fs2 = "0.4.3"
+sha2 = "0.11.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

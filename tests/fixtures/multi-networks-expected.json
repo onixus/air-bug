@@ -1,0 +1,29 @@
+{
+  "networks": [
+    {
+      "bssid": "02:00:00:10:00:01",
+      "ssid_hex": "536861726564204e6574776f726b",
+      "candidate": "first shared password"
+    },
+    {
+      "bssid": "02:00:00:10:00:02",
+      "ssid_hex": "536861726564204e6574776f726b",
+      "candidate": "first shared password"
+    },
+    {
+      "bssid": "02:00:00:10:00:03",
+      "ssid_hex": "446966666572656e74204e6574776f726b",
+      "candidate": "second different password"
+    },
+    {
+      "bssid": "02:00:00:10:00:04",
+      "ssid_hex": "536861726564204e6574776f726b",
+      "candidate": "other shared password"
+    }
+  ],
+  "hidden": {
+    "bssid": "02:00:00:10:00:05",
+    "ssid_hex": "ff00581b",
+    "candidate": "first shared password"
+  }
+}

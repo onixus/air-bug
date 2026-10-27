@@ -1,0 +1,8 @@
+[package]
+name = "air-frames"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+air-core = { path = "../air-core" }
+thiserror = "2"

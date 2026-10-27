@@ -1,0 +1,11 @@
+[package]
+name = "air-capture"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+air-handshake = { path = "../air-handshake" }
+air-frames = { path = "../air-frames" }
+pcap-file = "2.0.0"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }

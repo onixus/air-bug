@@ -1,0 +1,95 @@
+name: Rust checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo build --release --workspace --locked
+
+  interop:
+    name: Offline differential tests (aircrack-ng 1.7)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y aircrack-ng
+      - run: cargo build -p air-cli --release --locked
+      - run: python3 tests/interop/compare_aircrack_ng.py --upstream "$(command -v aircrack-ng)" --rust target/release/aircrack --report target/interop.json
+      - run: python3 tests/interop/compare_airdecap_ng.py --upstream "$(command -v airdecap-ng)" --rust target/release/aircrack --report target/interop-decap.json
+      - run: python3 tests/interop/validate_roaming_fragments.py --rust target/release/aircrack --report target/roaming-fragments.json
+      - run: python3 tests/interop/validate_streaming.py --rust target/release/aircrack --report target/streaming-memory.json
+      - run: python3 tests/interop/validate_multi_network.py --rust target/release/aircrack --report target/multi-network.json
+      - run: target/release/aircrack benchmark --candidates 64 --samples 1 --threads 1 --json target/dictionary-benchmark.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aircrack-ng-1.7-interop
+          path: |
+            target/interop.json
+            target/interop-decap.json
+            target/roaming-fragments.json
+            target/streaming-memory.json
+            target/dictionary-benchmark.json
+            target/multi-network.json
+
+  android:
+    name: Android APK / Apex / JNI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+      - run: python3 android/tests/check_apex.py
+      - run: bash android/test-host-jni.sh
+      - run: bash android/build-android.sh assembleDebugAndroidTest
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          script: |
+            ./android/gradlew -p android connectedDebugAndroidTest
+            mkdir -p android/build/apex-screenshots
+            adb pull /data/local/tmp/apex-dark.png android/build/apex-screenshots/
+            adb pull /data/local/tmp/apex-light.png android/build/apex-screenshots/
+            adb pull /data/local/tmp/apex-dark-result.png android/build/apex-screenshots/
+            adb pull /data/local/tmp/apex-light-result.png android/build/apex-screenshots/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aircrack-android-debug
+          path: |
+            android/app/build/outputs/apk/
+            android/app/build/reports/
+            android/app/build/outputs/androidTest-results/
+            android/build/apex-screenshots/

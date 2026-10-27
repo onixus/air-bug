@@ -1,0 +1,151 @@
+{
+  "algorithm": "PBKDF2-HMAC-SHA1/4096/32",
+  "arch": "aarch64",
+  "cache_samples": [
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    }
+  ],
+  "candidates": 1024,
+  "dictionary_cache_cold": {
+    "candidates_per_second": 2338.059236027637,
+    "median_seconds": 0.437970084,
+    "seconds": [
+      0.4452965,
+      0.428259458,
+      0.435102542,
+      0.431557708,
+      0.442542583,
+      0.437970084,
+      0.442899125
+    ]
+  },
+  "dictionary_cache_warm": {
+    "candidates_per_second": 463864.33417801344,
+    "median_seconds": 0.002207542,
+    "seconds": [
+      0.002207542,
+      0.002413834,
+      0.002186667,
+      0.00221275,
+      0.00211975,
+      0.002197958,
+      0.002361791
+    ]
+  },
+  "dictionary_no_cache": {
+    "candidates_per_second": 3464.275012392057,
+    "median_seconds": 0.295588542,
+    "seconds": [
+      0.300614166,
+      0.294609834,
+      0.298351125,
+      0.294203125,
+      0.293841625,
+      0.295588542,
+      0.303216208
+    ]
+  },
+  "optimized": {
+    "candidates_per_second": 3452.132425013464,
+    "median_seconds": 0.29662825,
+    "seconds": [
+      0.299810625,
+      0.29407675,
+      0.29662825,
+      0.300667792,
+      0.296543917,
+      0.297102666,
+      0.295186084
+    ]
+  },
+  "os": "macos",
+  "pbkdf2_speedup": 1.4164462016008255,
+  "profile": "release",
+  "reference": {
+    "candidates_per_second": 2437.1786384205534,
+    "median_seconds": 0.420157958,
+    "seconds": [
+      0.420157958,
+      0.416583084,
+      0.420406875,
+      0.423764709,
+      0.417529708,
+      0.427140541,
+      0.414754458
+    ]
+  },
+  "samples": 7,
+  "schema_version": 1,
+  "scope": "synthetic CPU benchmark; disk lookup and MIC verification included in cache modes; warm cache is not PBKDF2 throughput; no upstream speed parity claim",
+  "synthetic_ssid_hex": "616972637261636b2d72732062656e63686d61726b",
+  "threads": 1,
+  "verification_targets": [
+    "WPA2 EAPOL",
+    "PMKID"
+  ],
+  "binary_sha256": "88b54fe99ba21e7273877b95dd96d42e385d4eae167a499ea214eaa614b103c2",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "host": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+  "measurement_date": "2026-10-27"
+}

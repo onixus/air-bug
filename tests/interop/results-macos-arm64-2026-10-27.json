@@ -1,0 +1,563 @@
+{
+  "schema_version": 1,
+  "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+  "upstream_version": "1.7",
+  "upstream_sha256": "459b4cc3c0d873df0c81abea3aef5c5f2673756ab7e59d86939de2bc09096533",
+  "rust_sha256": "307b4d4553599997c6fbb5901abe6bd5359d03bbecb63cfacc614fb9de660d2d",
+  "cases": [
+    {
+      "capture": "wpa2-m1m2-compat.pcap",
+      "capture_sha256": "fbb5703a278d5232ecf6e29de6fb1b815d2c95d35e81cfecac8c7d5285a5615b",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "1 potential targets\n\nKEY FOUND! [ correct horse battery ]\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-m1m2-compat.pcap"
+        ]
+      },
+      "rust": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "[*] packets: 3\n[*] parsed frames: 3; skipped: 0\n[*] handshake sessions: 1; PMKID targets: 0\n[*] selected BSSID: 02:00:00:00:00:01\n[+] found: correct horse battery\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-m1m2-compat.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-m1m2-compat.pcap",
+      "capture_sha256": "fbb5703a278d5232ecf6e29de6fb1b815d2c95d35e81cfecac8c7d5285a5615b",
+      "wordlist": "wrong-words.txt",
+      "wordlist_sha256": "307aaa479ac13b17b2fb52d299f5760c99054e27fb22088290d07b70fa78e834",
+      "upstream": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "1 potential targets\n\n\nKEY NOT FOUND\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/wrong-words.txt",
+          "<workspace>/tests/fixtures/wpa2-m1m2-compat.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 3\n[*] parsed frames: 3; skipped: 0\n[*] handshake sessions: 1; PMKID targets: 0\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-m1m2-compat.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/wrong-words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-m2m3.pcap",
+      "capture_sha256": "14508b686c009e9d977fecd8c0e06153556aa367d850bf61b7c72b966e350498",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "1 potential targets\n\nKEY FOUND! [ correct horse battery ]\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-m2m3.pcap"
+        ]
+      },
+      "rust": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "[*] packets: 3\n[*] parsed frames: 3; skipped: 0\n[*] handshake sessions: 1; PMKID targets: 0\n[*] selected BSSID: 02:00:00:00:00:01\n[+] found: correct horse battery\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-m2m3.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-m2m3.pcap",
+      "capture_sha256": "14508b686c009e9d977fecd8c0e06153556aa367d850bf61b7c72b966e350498",
+      "wordlist": "wrong-words.txt",
+      "wordlist_sha256": "307aaa479ac13b17b2fb52d299f5760c99054e27fb22088290d07b70fa78e834",
+      "upstream": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "1 potential targets\n\n\nKEY NOT FOUND\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/wrong-words.txt",
+          "<workspace>/tests/fixtures/wpa2-m2m3.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 3\n[*] parsed frames: 3; skipped: 0\n[*] handshake sessions: 1; PMKID targets: 0\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-m2m3.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/wrong-words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-pmkid.pcap",
+      "capture_sha256": "c252d581540046c36ffb9d548db7b5786667c5eb270aa46cd7c8cebbd9904328",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "1 potential targets\n\nKEY FOUND! [ correct horse battery ]\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid.pcap"
+        ]
+      },
+      "rust": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\n[+] found: correct horse battery\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-pmkid.pcap",
+      "capture_sha256": "c252d581540046c36ffb9d548db7b5786667c5eb270aa46cd7c8cebbd9904328",
+      "wordlist": "wrong-words.txt",
+      "wordlist_sha256": "307aaa479ac13b17b2fb52d299f5760c99054e27fb22088290d07b70fa78e834",
+      "upstream": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "1 potential targets\n\n\nKEY NOT FOUND\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/wrong-words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/wrong-words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-m2m3-bad-mic.pcap",
+      "capture_sha256": "1dc73c5d41a0388039a5e6e5b039822a80f505ada7774398d3dc284dd3a10fac",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "1 potential targets\n\n\nKEY NOT FOUND\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-m2m3-bad-mic.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 3\n[*] parsed frames: 3; skipped: 0\n[*] handshake sessions: 1; PMKID targets: 0\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-m2m3-bad-mic.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-pmkid-bad-id.pcap",
+      "capture_sha256": "3a41bd585fc8881d98f849baf3ac7be584dd26ba47ee70b4a143d2d5596e7476",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "1 potential targets\n\n\nKEY NOT FOUND\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid-bad-id.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid-bad-id.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": true
+    },
+    {
+      "capture": "wpa2-pmkid-assoc.pcap",
+      "capture_sha256": "c65d33a4d3383ba716f652c0aba9c379e6a3738dda76f3cd146ea83f891d6ba4",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "no_target",
+        "expected": "no_target",
+        "exit_code": 1,
+        "output": "Packets contained no EAPOL data; unable to process this AP.\n1 potential targets\n\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid-assoc.pcap"
+        ]
+      },
+      "rust": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\n[+] found: correct horse battery\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid-assoc.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": false
+    },
+    {
+      "capture": "wpa2-pmkid-assoc.pcap",
+      "capture_sha256": "c65d33a4d3383ba716f652c0aba9c379e6a3738dda76f3cd146ea83f891d6ba4",
+      "wordlist": "wrong-words.txt",
+      "wordlist_sha256": "307aaa479ac13b17b2fb52d299f5760c99054e27fb22088290d07b70fa78e834",
+      "upstream": {
+        "status": "no_target",
+        "expected": "no_target",
+        "exit_code": 1,
+        "output": "Packets contained no EAPOL data; unable to process this AP.\n1 potential targets\n\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/wrong-words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid-assoc.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid-assoc.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/wrong-words.txt"
+        ]
+      },
+      "same_result": false
+    },
+    {
+      "capture": "wpa2-pmkid-reassoc.pcap",
+      "capture_sha256": "b03ca6dd0112709676f01a2298037d7d24a7297d209ed18aa99adfc7b2c11b11",
+      "wordlist": "words.txt",
+      "wordlist_sha256": "a624bcb221d4afcbdf26dbb7d85606d2615c496930d1c09b1719965ad249b30d",
+      "upstream": {
+        "status": "no_target",
+        "expected": "no_target",
+        "exit_code": 1,
+        "output": "Packets contained no EAPOL data; unable to process this AP.\n1 potential targets\n\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid-reassoc.pcap"
+        ]
+      },
+      "rust": {
+        "status": "found",
+        "expected": "found",
+        "exit_code": 0,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\n[+] found: correct horse battery\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid-reassoc.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/words.txt"
+        ]
+      },
+      "same_result": false
+    },
+    {
+      "capture": "wpa2-pmkid-reassoc.pcap",
+      "capture_sha256": "b03ca6dd0112709676f01a2298037d7d24a7297d209ed18aa99adfc7b2c11b11",
+      "wordlist": "wrong-words.txt",
+      "wordlist_sha256": "307aaa479ac13b17b2fb52d299f5760c99054e27fb22088290d07b70fa78e834",
+      "upstream": {
+        "status": "no_target",
+        "expected": "no_target",
+        "exit_code": 1,
+        "output": "Packets contained no EAPOL data; unable to process this AP.\n1 potential targets\n\n",
+        "command": [
+          "/private/tmp/aircrack-ng-bottle/aircrack-ng/1.7_2/bin/aircrack-ng",
+          "-q",
+          "-a",
+          "2",
+          "-p",
+          "1",
+          "-b",
+          "02:00:00:00:00:01",
+          "-e",
+          "Test Network",
+          "-w",
+          "<workspace>/tests/fixtures/wrong-words.txt",
+          "<workspace>/tests/fixtures/wpa2-pmkid-reassoc.pcap"
+        ]
+      },
+      "rust": {
+        "status": "not_found",
+        "expected": "not_found",
+        "exit_code": 1,
+        "output": "[*] packets: 2\n[*] parsed frames: 2; skipped: 0\n[*] handshake sessions: 0; PMKID targets: 1\n[*] selected BSSID: 02:00:00:00:00:01\nError: password not found in wordlist\n",
+        "command": [
+          "<workspace>/target/release/aircrack",
+          "aircrack",
+          "--capture",
+          "<workspace>/tests/fixtures/wpa2-pmkid-reassoc.pcap",
+          "--essid",
+          "Test Network",
+          "--bssid",
+          "02:00:00:00:00:01",
+          "--wordlist",
+          "<workspace>/tests/fixtures/wrong-words.txt"
+        ]
+      },
+      "same_result": false
+    }
+  ],
+  "failures": [],
+  "scope": "synthetic correctness only; no performance or radio acceptance"
+}

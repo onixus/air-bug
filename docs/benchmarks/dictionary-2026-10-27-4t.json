@@ -1,0 +1,123 @@
+{
+  "algorithm": "PBKDF2-HMAC-SHA1/4096/32",
+  "arch": "aarch64",
+  "cache_samples": [
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    },
+    {
+      "cold_derived": 1024,
+      "cold_hits": 0,
+      "cold_misses": 1024,
+      "evictions": 0,
+      "warm_derived": 0,
+      "warm_hits": 1024,
+      "warm_misses": 0
+    }
+  ],
+  "candidates": 1024,
+  "dictionary_cache_cold": {
+    "candidates_per_second": 4829.603955449413,
+    "median_seconds": 0.212025667,
+    "seconds": [
+      0.210813083,
+      0.218018958,
+      0.212168417,
+      0.212025667,
+      0.210312084
+    ]
+  },
+  "dictionary_cache_warm": {
+    "candidates_per_second": 523216.4527048604,
+    "median_seconds": 0.001957125,
+    "seconds": [
+      0.001997666,
+      0.0020545,
+      0.001957125,
+      0.001951458,
+      0.001901666
+    ]
+  },
+  "dictionary_no_cache": {
+    "candidates_per_second": 12962.107355109842,
+    "median_seconds": 0.0789995,
+    "seconds": [
+      0.0789995,
+      0.079004958,
+      0.078892875,
+      0.079411541,
+      0.078892875
+    ]
+  },
+  "optimized": {
+    "candidates_per_second": 12989.744938873799,
+    "median_seconds": 0.078831417,
+    "seconds": [
+      0.078736041,
+      0.079076958,
+      0.079422,
+      0.078641375,
+      0.078831417
+    ]
+  },
+  "os": "macos",
+  "pbkdf2_speedup": 1.401970130766519,
+  "profile": "release",
+  "reference": {
+    "candidates_per_second": 9265.350704562965,
+    "median_seconds": 0.110519292,
+    "seconds": [
+      0.110744667,
+      0.110864958,
+      0.110325375,
+      0.110519292,
+      0.109968167
+    ]
+  },
+  "samples": 5,
+  "schema_version": 1,
+  "scope": "synthetic CPU benchmark; disk lookup and MIC verification included in cache modes; warm cache is not PBKDF2 throughput; no upstream speed parity claim",
+  "synthetic_ssid_hex": "616972637261636b2d72732062656e63686d61726b",
+  "threads": 4,
+  "verification_targets": [
+    "WPA2 EAPOL",
+    "PMKID"
+  ],
+  "binary_sha256": "88b54fe99ba21e7273877b95dd96d42e385d4eae167a499ea214eaa614b103c2",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "host": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+  "measurement_date": "2026-10-27"
+}

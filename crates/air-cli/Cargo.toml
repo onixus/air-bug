@@ -1,0 +1,28 @@
+[package]
+name = "air-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "aircrack"
+path = "src/main.rs"
+
+[dependencies]
+air-core = { path = "../air-core" }
+air-frames = { path = "../air-frames" }
+air-capture = { path = "../air-capture" }
+air-handshake = { path = "../air-handshake" }
+air-crack = { path = "../air-crack" }
+air-platform = { path = "../air-platform" }
+air-tui = { path = "../air-tui" }
+clap = { version = "4.6.7", features = ["derive"] }
+anyhow = "1"
+hex = "0.4.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.11.0"
+rayon = "1.10"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+signal-hook = "0.3"

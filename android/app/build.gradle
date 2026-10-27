@@ -1,0 +1,31 @@
+plugins { id 'com.android.application' }
+
+// Launcher resources are generated from the same native semantic token table.
+def apexSource = file('src/main/java/dev/onixus/aircrack/ApexTokens.java').text
+def apexColor = { name ->
+    def match = (apexSource =~ /${name} = dark \? 0xff([0-9a-f]{6})/)
+    if (!match.find()) throw new GradleException("Missing Apex token: $name")
+    return '#' + match.group(1)
+}
+
+android {
+    namespace 'dev.onixus.aircrack'
+    compileSdk 36
+    useLibrary 'android.test.runner'
+    useLibrary 'android.test.base'
+    ndkVersion '28.2.13676358'
+    defaultConfig {
+        applicationId 'dev.onixus.aircrack'
+        minSdk 26
+        targetSdk 36
+        versionCode 2
+        versionName '0.1.1'
+        resValue 'color', 'apex_launcher_canvas', apexColor('canvas')
+        resValue 'color', 'apex_launcher_accent', apexColor('accent')
+        ndk { abiFilters 'arm64-v8a', 'x86_64' }
+        testInstrumentationRunner 'android.test.InstrumentationTestRunner'
+    }
+    buildTypes { release { minifyEnabled false } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    lint { abortOnError true }
+}

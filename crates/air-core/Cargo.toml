@@ -1,0 +1,19 @@
+[package]
+name = "air-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hmac = "0.13.0"
+pbkdf2 = "0.13.0"
+sha1 = "0.11.0"
+hex = "0.4.3"
+thiserror = "2"
+md-5 = "0.11.0"
+aes = "0.8.4"
+ccm = "0.5.0"
+rc4 = "0.1.0"
+crc32fast = "1.5"
+cmac = "0.7.2"
+sha2 = "0.11.0"
+subtle = "2"

@@ -1,0 +1,16 @@
+[package]
+name = "air-jni"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+air-capture = { path = "../air-capture" }
+air-frames = { path = "../air-frames" }
+air-handshake = { path = "../air-handshake" }
+air-crack = { path = "../air-crack" }
+jni = "0.21.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

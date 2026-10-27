@@ -1,0 +1,5 @@
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/apex_launcher_canvas" />
+    <foreground android:drawable="@drawable/ic_apex_shield" />
+    <monochrome android:drawable="@drawable/ic_apex_shield" />
+</adaptive-icon>
