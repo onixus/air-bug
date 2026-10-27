@@ -70,7 +70,9 @@ def main():
                 result = subprocess.run(command, env=env, text=True, stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT, timeout=30)
                 output, code = result.stdout, result.returncode
-                if code == 0 and (f'KEY FOUND! [ {PASSWORD} ]' in output if impl == 'upstream'
+                if impl == 'upstream' and capture in ('wpa2-v3.pcap', 'wpa2-v3-m2m3.pcap') and code == 1 and 'OMAC1 is only supported when OpenSSL (or similar) supports CMAC.' in output:
+                    status = 'unsupported'
+                elif code == 0 and (f'KEY FOUND! [ {PASSWORD} ]' in output if impl == 'upstream'
                                   else f'[+] found: {PASSWORD}' in output):
                     status = 'found'
                 elif code == 1 and ('KEY NOT FOUND' in output if impl == 'upstream'
@@ -84,6 +86,10 @@ def main():
             except (OSError, subprocess.TimeoutExpired) as error:
                 output, code, status = str(error), None, 'error'
             expected = upstream_expected if impl == 'upstream' else rust_expected
+            # Some upstream 1.7 builds explicitly report they lack CMAC. Keep
+            # the diagnostic visible; do not call it a password mismatch.
+            if impl == 'upstream' and status == 'unsupported':
+                expected = 'unsupported'
             row[impl] = {'status': status, 'expected': expected, 'exit_code': code,
                          'output': re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', output),
                          'command': command}

@@ -177,7 +177,7 @@ pub fn run(
         match decoder.decode(&record.packet, record.timestamp.unwrap_or_default()) {
             Ok(Some(frame)) => {
                 parsed += 1;
-                if ap(&frame).is_some_and(&selected) {
+                if ap(&frame).is_some_and(selected) {
                     evidence.push(frame)?;
                 }
             }
