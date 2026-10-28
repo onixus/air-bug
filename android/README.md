@@ -22,7 +22,7 @@ The pinned [Gradle wrapper](<gradle/wrapper/gradle-wrapper.properties>) is inclu
 ## Use
 
 1. Import a PCAP/PCAPNG through Android's document picker, or load the synthetic training example.
-2. Confirm you have the network owner's authorization.
+2. Confirm written owner authorization or engagement scope for every network in the capture. The app states this in its footer and never prompts interactively; keeping the scope is the operator's responsibility.
 3. Without a dictionary, analyze the capture. The report lists BSSIDs, SSIDs and supported M1/M2, M2/M3 and PMKID records.
 4. Tap a network to select its BSSID; enter SSID explicitly if missing or ambiguous. Original SSID bytes are preserved internally; lossy display text is never silently reused for verification.
 5. Optionally import a UTF-8 wordlist, then verify. A matched passphrase is hidden until explicitly revealed.

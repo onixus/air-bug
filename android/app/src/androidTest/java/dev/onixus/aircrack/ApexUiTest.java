@@ -47,7 +47,7 @@ public final class ApexUiTest extends ActivityInstrumentationTestCase2<MainActiv
         getInstrumentation().runOnMainSync(()->activity.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON));
         screenshot(activity,"apex-"+theme);
         click(activity,"Загрузить учебный пример"); waitFor(activity,"Учебный · words.txt");
-        click(activity,"У меня есть разрешение владельца сети"); click(activity,"Проверить словарь");
+        click(activity,"Проверить словарь");
         waitFor(activity,"  Совпадение найдено");
         // Ensure the secret is hidden by default, even in a successful report.
         assertNull(find(activity.getWindow().getDecorView(),"correct horse battery"));

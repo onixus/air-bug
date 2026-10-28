@@ -32,14 +32,12 @@ public final class MainActivity extends Activity {
     private ApexTokens t;
     private LinearLayout body, results;
     private EditText ssid, bssid;
-    private CheckBox authorized;
     private TextView progress;
     private Button run, cancel;
     private volatile boolean busy, destroyed;
     private File capture, dictionary;
     private String captureName = "Файл не выбран", dictionaryName = "Необязательно · только анализ";
     private String ssidValue = "", bssidValue = "", theme = "system", report = "";
-    private boolean consent;
 
     @Override public void onCreate(Bundle state) {
         theme = getPreferences(MODE_PRIVATE).getString("apex.theme", "system");
@@ -103,7 +101,6 @@ public final class MainActivity extends Activity {
     private void remember() {
         if(ssid!=null) ssidValue=ssid.getText().toString();
         if(bssid!=null) bssidValue=bssid.getText().toString();
-        if(authorized!=null) consent=authorized.isChecked();
     }
     @SuppressWarnings("deprecation")
     private void render() {
@@ -154,15 +151,13 @@ public final class MainActivity extends Activity {
         label(selection,"BSSID · обязателен при нескольких сетях"); bssid=field("aa:bb:cc:dd:ee:ff",bssidValue); add(selection,bssid);
         space(selection,12); add(selection,text("Сначала выполните анализ без словаря. Нажмите сеть в отчёте, чтобы выбрать её BSSID. Поддерживаются WPA2 M1/M2, M2/M3 (descriptor v2) и PMKID.",ApexTokens.BODY_SM,t.secondary,false));
 
-        LinearLayout action=card("03 / АВТОРИЗОВАННЫЙ АУДИТ","Запуск анализа");
-        authorized=new CheckBox(this); authorized.setText("У меня есть разрешение владельца сети"); authorized.setTextSize(ApexTokens.BODY_SM); authorized.setTextColor(t.text); authorized.setTypeface(t.inter); authorized.setMinHeight(dp(48)); authorized.setChecked(consent); authorized.setSaveEnabled(false);
-        authorized.setButtonTintList(android.content.res.ColorStateList.valueOf(t.accent)); add(action,authorized); controls.add(authorized);
+        LinearLayout action=card("03 / ЗАПУСК","Запуск анализа");
         space(action,12); run=button(dictionary.isFile()?"Проверить словарь":"Анализировать захват",true,this::startAnalysis); add(action,run);
         space(action,12); progress=text("Готов к работе",ApexTokens.CAPTION,t.secondary,true); progress.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); add(action,progress);
         cancel=button("Остановить",false,()->{cancelled=true; NativeBridge.control(1);}); space(action,8); add(action,cancel); cancel.setVisibility(View.GONE);
         results=column(); add(body,results); showReport();
         add(body,text("RUST CORE / APEX DESIGN SYSTEM",ApexTokens.OVERLINE,t.muted,true)); space(body,8);
-        add(body,text("Нет live/monitor-захвата, инъекций и WPA3. Лимиты: 32 768 пакетов и 128 EAPOL keys. Не импортируйте недоверенные захваты.",ApexTokens.CAPTION,t.secondary,false));
+        add(body,text("Нет live/monitor-захвата, инъекций и WPA3. Лимиты: 32 768 пакетов и 128 EAPOL keys. Не импортируйте недоверенные захваты. Аудит — только по письменному разрешению владельца сети или правилам вовлечения.",ApexTokens.CAPTION,t.secondary,false));
         setContentView(root); root.requestApplyInsets(); setBusy(busy);
     }
     private void chooseTheme() {
@@ -238,7 +233,6 @@ public final class MainActivity extends Activity {
     }
     private void startAnalysis() {
         remember();
-        if(!consent) { report=errorReport("Подтвердите разрешение владельца сети"); showReport(); return; }
         if(!capture.isFile()) { report=errorReport("Сначала выберите захват"); showReport(); return; }
         final String request;
         try { request=new JSONObject().put("capture",capture.getAbsolutePath()).put("wordlist",dictionary.isFile()?dictionary.getAbsolutePath():"").put("ssid",ssidValue).put("bssid",bssidValue.trim()).toString(); }
