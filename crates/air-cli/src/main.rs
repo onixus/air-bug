@@ -3,6 +3,7 @@ mod capture_output;
 mod decap;
 mod decap_keys;
 mod dictionary;
+mod exit;
 mod live;
 mod multi;
 mod offline;
@@ -116,6 +117,11 @@ enum Commands {
         max_records: u32,
         #[arg(long, default_value = "1024", value_parser = clap::value_parser!(u32).range(1..=1024))]
         max_targets: u32,
+        /// Write a small machine diagnostic (exit category, counts, error) as
+        /// private JSON (new path only). No password or PMK is ever included.
+        /// Use --json=PATH for names starting with a hyphen; "-" is a literal file, not stdout.
+        #[arg(long, alias = "json")]
+        diagnostic_json: Option<PathBuf>,
     },
     /// Interactive UI preview (not connected to capture or verification)
     Tui,
@@ -141,7 +147,65 @@ fn parse_mac(value: &str) -> Result<[u8; 6], String> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) => {
+            // Keep clap help/version behavior for the Stage 1 commands.
+            let args: Vec<_> = std::env::args_os().skip(1).collect();
+            let kind = match args.first().and_then(|arg| arg.to_str()) {
+                Some("aircrack") => Some("aircrack_diagnostic"),
+                Some("airdecap") => Some("airdecap_diagnostic"),
+                Some("survey") => Some("survey_diagnostic"),
+                _ => None,
+            };
+            if error.use_stderr() {
+                if let Some(kind) = kind {
+                    let mut path = None;
+                    for (index, arg) in args.iter().enumerate().skip(1) {
+                        if arg == "--" {
+                            break;
+                        }
+                        if arg == "--diagnostic-json" || arg == "--json" {
+                            path = args
+                                .get(index + 1)
+                                .filter(|value| {
+                                    *value == "-" || !value.to_string_lossy().starts_with('-')
+                                })
+                                .map(PathBuf::from);
+                        } else if let Some(value) = arg.to_str().and_then(|s| {
+                            s.strip_prefix("--diagnostic-json=")
+                                .or_else(|| s.strip_prefix("--json="))
+                        }) {
+                            path = Some(PathBuf::from(value));
+                        }
+                    }
+                    let _ = error.print();
+                    let result = exit::Diagnostic::reserve(path.as_deref())
+                        .map_err(|error| (error, exit::USAGE))
+                        .and_then(|mut diagnostic| {
+                            diagnostic
+                                .write(
+                                    kind,
+                                    exit::Category::Usage,
+                                    exit::Summary {
+                                        counts: serde_json::json!({}),
+                                        verification: (kind == "aircrack_diagnostic")
+                                            .then_some("not_attempted"),
+                                    },
+                                    Some("invalid command arguments or configuration"),
+                                )
+                                .map_err(|error| (error, exit::INTERNAL))
+                        });
+                    if let Err((error, code)) = result {
+                        eprintln!("Error: {error:#}");
+                        std::process::exit(code);
+                    }
+                    std::process::exit(exit::USAGE);
+                }
+            }
+            error.exit();
+        }
+    };
     match cli.cmd {
         Commands::Benchmark(args) => benchmark::run(args),
         Commands::Scan(args) => wifi_scan::run(args),
@@ -163,6 +227,7 @@ fn main() -> anyhow::Result<()> {
             max_packets,
             max_records,
             max_targets,
+            diagnostic_json,
         } => offline::run(
             capture,
             wordlist,
@@ -178,6 +243,7 @@ fn main() -> anyhow::Result<()> {
                 max_records as usize,
                 max_targets as usize,
             ),
+            diagnostic_json,
         ),
         Commands::Tui => air_tui::run(),
         Commands::Airmon { .. } => bail!("airmon is not implemented; no interface changes made"),

@@ -1,3 +1,4 @@
+use crate::exit::{self, Category};
 use air_capture::survey::{display_bytes, mac_string, PcapStream, Survey};
 use air_platform::channels::Channels;
 use air_tui::survey::{Action, Dashboard};
@@ -55,6 +56,102 @@ pub struct SurveyArgs {
     /// Save the final AP/client snapshot as private CSV (new path only)
     #[arg(long, conflicts_with = "list_channels")]
     export_csv: Option<PathBuf>,
+    /// Write a small machine diagnostic (exit category, counts, error) as private
+    /// JSON (new path only). The exit category is also the process exit code.
+    /// Use --json=PATH for names starting with a hyphen; "-" is a literal file, not stdout.
+    #[arg(long, alias = "json")]
+    diagnostic_json: Option<PathBuf>,
+}
+
+/// Небольшая сводка счётчиков для диагностического JSON. Отражает финальный
+/// снимок наблюдений, без секретов и без построчной телеметрии.
+#[derive(Clone, Copy, Debug, Default)]
+struct Counts {
+    access_points: usize,
+    clients: usize,
+    packets: u64,
+    handshakes: usize,
+    pmkid: usize,
+}
+impl Counts {
+    fn from_survey(data: &Survey) -> Self {
+        Self {
+            access_points: data.aps.len(),
+            clients: data.stations.len(),
+            packets: data.packets,
+            handshakes: data
+                .aps
+                .values()
+                .filter(|ap| ap.handshake_m1m2 || ap.handshake_m2m3 || ap.handshake_m3m4)
+                .count(),
+            pmkid: data.aps.values().filter(|ap| ap.pmkid).count(),
+        }
+    }
+}
+
+impl Counts {
+    /// Сводка счётчиков для диагностического JSON (без секретов).
+    fn to_json(self) -> serde_json::Value {
+        serde_json::json!({
+            "access_points": self.access_points,
+            "clients": self.clients,
+            "packets": self.packets,
+            "handshakes": self.handshakes,
+            "pmkid": self.pmkid,
+        })
+    }
+}
+
+/// Относит сбой к стабильной категории исхода. Классификация внутренняя: backend
+/// читает уже готовую категорию из кода выхода и JSON, а не парсит текст.
+fn classify(error: &anyhow::Error) -> Category {
+    if let Some(category) = exit::classify_cause(error) {
+        return category;
+    }
+    let text = error
+        .chain()
+        .map(|e| e.to_string().to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let has = |needle: &str| text.contains(needle);
+    if has("already exists") || has("refusing to overwrite") {
+        Category::PrivilegeOrDevice
+    } else if has("is required") {
+        Category::Usage
+    } else if has("raw 802.11")
+        || has("radiotap")
+        || (has("pcap") || (has("capture") && has("header")))
+    {
+        Category::BadContainer
+    } else if has("no 802.11 packets") {
+        Category::NoSupportedTarget
+    } else if has("monitor")
+        || has("interface")
+        || has("permission")
+        || has("denied")
+        || has("device")
+        || has("channel")
+        || has("frequency")
+        || has("tcpdump")
+        || has("radio")
+    {
+        Category::PrivilegeOrDevice
+    } else {
+        Category::Internal
+    }
+}
+
+/// Внешняя обёртка: резервирует диагностику, запускает survey, фиксирует исход
+/// и выставляет код выхода согласно машинному контракту.
+pub fn run(args: SurveyArgs) -> Result<()> {
+    let diagnostic = args.diagnostic_json.clone();
+    exit::run_with_diagnostic(
+        diagnostic.as_deref(),
+        "survey_diagnostic",
+        classify,
+        |counts, _| Counts::to_json(counts).into(),
+        || execute(args),
+    )
 }
 
 struct Viewer {
@@ -241,7 +338,7 @@ fn optional(value: Option<impl ToString>) -> String {
     value.map(|v| v.to_string()).unwrap_or_else(|| "?".into())
 }
 
-pub fn run(args: SurveyArgs) -> Result<()> {
+fn execute(args: SurveyArgs) -> Result<Counts> {
     super::live::install_signals()?;
     let mut exports = super::survey_export::Exports::reserve(
         args.export_json.as_deref(),
@@ -271,7 +368,7 @@ pub fn run(args: SurveyArgs) -> Result<()> {
         }
         view.draw("Offline passive inventory", true)?;
         exports.write(&view.data, view.started.elapsed())?;
-        return Ok(());
+        return Ok(Counts::from_survey(&view.data));
     }
     let iface = args.iface.as_deref().context("--iface is required")?;
     let mut radio = Channels::open(iface)?;
@@ -304,7 +401,7 @@ pub fn run(args: SurveyArgs) -> Result<()> {
         if let Some(mode) = radio.mode {
             println!("CoreWLAN mode: {mode} (0 = unassociated, 1 = associated station)");
         }
-        return Ok(());
+        return Ok(Counts::default());
     }
     let output = args.output.context("--output is required")?;
     let diagnostics = air_platform::survey_log_path(&output);
@@ -475,11 +572,12 @@ pub fn run(args: SurveyArgs) -> Result<()> {
         bail!("no 802.11 packets received; a PCAP header alone does not confirm working monitor capture. Check adapter state and {}", diagnostics.display());
     }
     exports.write(&view.data, view.started.elapsed())?;
+    let counts = Counts::from_survey(&view.data);
     drop(view);
     println!(
         "Survey finalized: {}\nDiagnostics: {}",
         output.display(),
         diagnostics.display()
     );
-    Ok(())
+    Ok(counts)
 }

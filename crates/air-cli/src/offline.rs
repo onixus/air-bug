@@ -1,4 +1,5 @@
 //! Bounded two-pass multi-input capture discovery and network selection.
+use crate::exit::{self, Category};
 use air_capture::{CaptureError, CaptureLimits, CaptureReader, FrameDecoder, PacketRecord};
 use air_crack::{
     engine::TargetSet,
@@ -87,6 +88,70 @@ fn read_inputs(
     }
     Ok(hashes)
 }
+/// Небольшая сводка верификации для диагностического JSON. Содержит только
+/// обезличенные счётчики: ни пароля, ни PMK, ни построчной телеметрии.
+#[derive(Clone, Copy, Debug, Default)]
+struct Counts {
+    packets: u64,
+    parsed_frames: u64,
+    skipped_frames: u64,
+    networks: usize,
+    handshake_sessions: usize,
+    pmkid_targets: usize,
+    verification_started: bool,
+}
+impl Counts {
+    fn to_json(self) -> serde_json::Value {
+        serde_json::json!({
+            "packets": self.packets,
+            "parsed_frames": self.parsed_frames,
+            "skipped_frames": self.skipped_frames,
+            "networks": self.networks,
+            "handshake_sessions": self.handshake_sessions,
+            "pmkid_targets": self.pmkid_targets,
+        })
+    }
+}
+
+/// Относит сбой к стабильной категории исхода. «Пароль не найден» — штатный
+/// исход верификации (код 2), а не сбой выполнения. Классификация внутренняя:
+/// backend читает готовую категорию из кода выхода и JSON, а не парсит текст.
+fn classify(error: &anyhow::Error) -> Category {
+    if let Some(category) = exit::classify_cause(error) {
+        return category;
+    }
+    let text = error
+        .chain()
+        .map(|e| e.to_string().to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let has = |needle: &str| text.contains(needle);
+    if has("password not found") || has("no supplied exported pmk matched") {
+        Category::PasswordNotFound
+    } else if has("unsupported capture link type") || has("cannot read capture") {
+        Category::BadContainer
+    } else if has("no complete wpa") || has("no 802.11") {
+        Category::NoSupportedTarget
+    } else if has("is required")
+        || has("must")
+        || has("at most")
+        || has("exceeded")
+        || has("invalid")
+        || has("provide --essid")
+        || has("conflicting ssids")
+        || has("stdin")
+        || has("not a regular file")
+    {
+        Category::Usage
+    } else if has("cannot create") || has("cannot open") || has("locked") {
+        Category::PrivilegeOrDevice
+    } else {
+        Category::Internal
+    }
+}
+
+/// Внешняя обёртка: резервирует диагностику, запускает верификацию и выставляет
+/// код выхода согласно машинному контракту.
 #[allow(clippy::too_many_arguments)]
 pub fn run(
     captures: Vec<PathBuf>,
@@ -96,18 +161,54 @@ pub fn run(
     ssid_map: Option<PathBuf>,
     options: super::dictionary::Options,
     limits: (CaptureLimits, usize, usize),
+    diagnostic_json: Option<PathBuf>,
+) -> Result<()> {
+    exit::run_with_diagnostic_counts(
+        diagnostic_json.as_deref(),
+        "aircrack_diagnostic",
+        classify,
+        |counts: Counts, category| exit::Summary {
+            counts: counts.to_json(),
+            verification: Some(match category {
+                Category::PasswordNotFound => "not_found",
+                Category::Partial => "partial",
+                Category::Success if counts.verification_started => "found",
+                _ if counts.verification_started => "partial",
+                _ => "not_attempted",
+            }),
+        },
+        |counts| {
+            execute(
+                captures, words, essid, bssids, ssid_map, options, limits, counts,
+            )
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute(
+    captures: Vec<PathBuf>,
+    words: Vec<PathBuf>,
+    essid: Option<String>,
+    bssids: Vec<Mac>,
+    ssid_map: Option<PathBuf>,
+    options: super::dictionary::Options,
+    limits: (CaptureLimits, usize, usize),
+    counts: &mut Counts,
 ) -> Result<()> {
     if captures.is_empty() || captures.len() > 64 || words.len() > 64 || bssids.len() > 256 {
         bail!("at most 64 captures, 64 dictionaries and 256 BSSID selections are supported");
     }
-    options.validate(words.first().map(|p| p.as_path()))?;
+    options
+        .validate(words.first().map(|p| p.as_path()))
+        .context("invalid dictionary options")?;
     if words.iter().any(|p| p.as_os_str() == "-") && words.len() != 1 {
         bail!("stdin must be the only dictionary");
     }
     if essid.as_ref().is_some_and(|s| s.is_empty() || s.len() > 32) {
         bail!("SSID must contain 1 to 32 bytes");
     }
-    let map = mappings(ssid_map)?;
+    let map = mappings(ssid_map).context("invalid SSID map")?;
     let filter: BTreeSet<_> = bssids.into_iter().collect();
     let (limits, max_records, max_targets) = limits;
     let mut total = 0u64;
@@ -197,11 +298,21 @@ pub fn run(
         .iter()
         .filter(|s| matches!(s, VerificationTarget::Pmkid(_)))
         .count();
+    let session_count = sessions.len();
     println!(
         "[*] handshake sessions: {}; PMKID targets: {}",
-        sessions.len() - pmkids,
+        session_count - pmkids,
         pmkids
     );
+    *counts = Counts {
+        packets: count as u64,
+        parsed_frames: parsed as u64,
+        skipped_frames: skipped as u64,
+        handshake_sessions: session_count - pmkids,
+        pmkid_targets: pmkids,
+        verification_started: false,
+        networks: 0,
+    };
     if sessions.is_empty() {
         bail!("no complete WPA/WPA2-PSK M1/M2, M2/M3 or M3/M4 handshake or PMKID target (including FT and SAE exported-PMK targets) matching the selected network");
     }
@@ -212,6 +323,16 @@ pub fn run(
     if by_ap.len() > 256 {
         bail!("network limit exceeded (maximum 256)");
     }
+    // Обезличенная сводка евиденции; исход верификации отражает категория.
+    *counts = Counts {
+        packets: count as u64,
+        parsed_frames: parsed as u64,
+        skipped_frames: skipped as u64,
+        networks: by_ap.len(),
+        handshake_sessions: session_count - pmkids,
+        pmkid_targets: pmkids,
+        verification_started: false,
+    };
     if by_ap.len() == 1 {
         println!(
             "[*] selected BSSID: {}",
@@ -253,6 +374,7 @@ pub fn run(
             ssid,
         });
     }
+    counts.verification_started = true;
     // Keep the established single-input CLI/checkpoint-v5 contract intact.
     if networks.len() == 1
         && captures.len() == 1

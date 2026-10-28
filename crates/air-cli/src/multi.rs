@@ -1,5 +1,6 @@
 //! Ordered dictionaries, per-BSSID matches, and a shared credential-free checkpoint.
 use super::dictionary::{hash, private_new, report_cache, Options, Stop};
+use crate::exit::Category;
 use air_crack::{networks::Networks, wordlist::Wordlist};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -181,7 +182,9 @@ impl Dictionaries {
             }
             match self.active.as_mut().unwrap().next() {
                 Some(word) => {
-                    let word = word.context("wordlist: cannot read wordlist")?;
+                    let word = word
+                        .context("wordlist: cannot read wordlist")
+                        .context(Category::Usage)?;
                     self.line = self
                         .line
                         .checked_add(1)
@@ -295,12 +298,15 @@ pub fn run(
             continue;
         }
         if !std::fs::metadata(path)
-            .context("cannot open wordlist")?
+            .context("cannot open wordlist")
+            .context(Category::Usage)?
             .is_file()
         {
             bail!("wordlist must be a regular file; use --wordlist - for stdin");
         }
-        let mut file = File::open(path).context("cannot open wordlist")?;
+        let mut file = File::open(path)
+            .context("cannot open wordlist")
+            .context(Category::Usage)?;
         if !file.metadata()?.is_file() {
             bail!("wordlist must be a regular file; use --wordlist - for stdin");
         }
@@ -346,7 +352,8 @@ pub fn run(
         .as_ref()
         .map(|path| air_crack::cache::Cache::open(path, options.pmk_cache_mib.unwrap_or(64)))
         .transpose()
-        .context("cannot open PMK cache")?;
+        .context("cannot open PMK cache")
+        .context(Category::Internal)?;
     let pool = options
         .threads
         .map(|n| {
@@ -360,7 +367,10 @@ pub fn run(
     // checkpoint; same-SSID matches at a position share one derivation again.
     for number in 1..=state.completed_lines {
         if stop.flag.load(Ordering::Relaxed) {
-            bail!("verification paused while restoring checkpoint; checkpoint unchanged");
+            return Err(anyhow::anyhow!(
+                "verification paused while restoring checkpoint; checkpoint unchanged"
+            )
+            .context(Category::Partial));
         }
         let word = words
             .next()?
@@ -464,7 +474,7 @@ pub fn run(
             }
             report_cache(cache.as_ref());
             finish(networks, paths, &state, &candidates, "paused", &mut results)?;
-            bail!("verification paused after {} dictionary lines; completed batch and network matches checkpointed when --session/--resume is used",state.completed_lines);
+            return Err(anyhow::anyhow!("verification paused after {} dictionary lines; completed batch and network matches checkpointed when --session/--resume is used",state.completed_lines).context(Category::Partial));
         }
         let size = options
             .max_candidates
@@ -497,7 +507,8 @@ pub fn run(
                 work()
             }
         }
-        .context("PMK cache/multi-network batch failed; checkpoint not advanced")?;
+        .context("PMK cache/multi-network batch failed; checkpoint not advanced")
+        .context(Category::Internal)?;
         let batch_end = state
             .completed_lines
             .checked_add(batch.len() as u64)

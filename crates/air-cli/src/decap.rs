@@ -1,3 +1,4 @@
+use crate::exit::{self, Category};
 use air_capture::{dlt_decode, CaptureLimits, CaptureReader, FrameDecoder};
 use air_core::{candidate_pmk, decrypt_wep};
 use air_frames::{wire_header_len, LLC_EAPOL};
@@ -33,6 +34,75 @@ pub struct DecapArgs {
     max_capture_mib: u64,
     #[arg(long, default_value = "10000000", value_parser = clap::value_parser!(u32).range(1..))]
     max_packets: u32,
+    /// Write a small machine diagnostic (exit category, counts, error) as private
+    /// JSON (new path only). No passphrase, PMK or WEP key is ever included.
+    /// Use --json=PATH for names starting with a hyphen; "-" is a literal file, not stdout.
+    #[arg(long, alias = "json")]
+    diagnostic_json: Option<PathBuf>,
+}
+
+/// Обезличенные счётчики декодирования для диагностического JSON: ни пароля, ни
+/// PMK, ни WEP-ключа.
+#[derive(Clone, Copy, Debug, Default)]
+struct Counts {
+    data_frames: u64,
+    decrypted: u64,
+    rejected: u64,
+    skipped: u64,
+    missing_timestamps: u64,
+    gtk_installed: u64,
+    gtk_rejected: u64,
+}
+impl Counts {
+    fn to_json(self) -> serde_json::Value {
+        serde_json::json!({
+            "data_frames": self.data_frames,
+            "decrypted": self.decrypted,
+            "rejected": self.rejected,
+            "skipped": self.skipped,
+            "missing_timestamps": self.missing_timestamps,
+            "gtk_installed": self.gtk_installed,
+            "gtk_rejected": self.gtk_rejected,
+        })
+    }
+}
+
+/// Относит сбой к стабильной категории исхода. Классификация внутренняя: backend
+/// читает готовую категорию из кода выхода и JSON, а не парсит текст.
+fn classify(error: &anyhow::Error) -> Category {
+    if let Some(category) = exit::classify_cause(error) {
+        return category;
+    }
+    let text = error
+        .chain()
+        .map(|e| e.to_string().to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let has = |needle: &str| text.contains(needle);
+    if has("requires raw 802.11") || has("cannot read capture") || has("unsupported") {
+        Category::BadContainer
+    } else if has("no data frames decoded") || has("no authenticated handshake") {
+        Category::NoSupportedTarget
+    } else if has("cannot create") || has("overwrite") || has("permission") || has("denied") {
+        Category::PrivilegeOrDevice
+    } else if has("must") || has("invalid passphrase") || has("hexadecimal") || has("ssid must") {
+        Category::Usage
+    } else {
+        Category::Internal
+    }
+}
+
+/// Внешняя обёртка: резервирует диагностику, запускает декодирование и выставляет
+/// код выхода согласно машинному контракту.
+pub fn run(args: DecapArgs) -> Result<()> {
+    let diagnostic = args.diagnostic_json.clone();
+    exit::run_with_diagnostic_counts(
+        diagnostic.as_deref(),
+        "airdecap_diagnostic",
+        classify,
+        |counts, _| Counts::to_json(counts).into(),
+        |counts| execute(args, counts),
+    )
 }
 fn ethernet(frame: &[u8], payload: &[u8]) -> Option<Vec<u8>> {
     if payload.len() < 8
@@ -48,7 +118,7 @@ fn ethernet(frame: &[u8], payload: &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
-pub fn run(args: DecapArgs) -> Result<()> {
+fn execute(args: DecapArgs, counts: &mut Counts) -> Result<()> {
     if args
         .essid
         .as_ref()
@@ -250,6 +320,15 @@ pub fn run(args: DecapArgs) -> Result<()> {
     if identity.finish() != expected_identity {
         bail!("capture changed between key collection and decryption; output removed");
     }
+    *counts = Counts {
+        data_frames: writer.count,
+        decrypted,
+        rejected,
+        skipped,
+        missing_timestamps: missing_times,
+        gtk_installed: keys.gtk_installed as u64,
+        gtk_rejected: keys.gtk_rejected as u64,
+    };
     if writer.count == 0 {
         bail!("no data frames decoded; rejected protected frames: {rejected}; skipped: {skipped}; GTK installed={} rejected={}",keys.gtk_installed,keys.gtk_rejected);
     }
