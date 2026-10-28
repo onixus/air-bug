@@ -75,7 +75,7 @@ def main():
                 elif code == 0 and (f'KEY FOUND! [ {PASSWORD} ]' in output if impl == 'upstream'
                                   else f'[+] found: {PASSWORD}' in output):
                     status = 'found'
-                elif code == 1 and ('KEY NOT FOUND' in output if impl == 'upstream'
+                elif code in (1, 2) and ('KEY NOT FOUND' in output if impl == 'upstream'
                                     else 'password not found in wordlist' in output):
                     status = 'not_found'
                 elif code == 1 and ('Packets contained no EAPOL data' in output if impl == 'upstream'
