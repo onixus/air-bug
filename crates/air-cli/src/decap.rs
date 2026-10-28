@@ -36,6 +36,7 @@ pub struct DecapArgs {
     max_packets: u32,
     /// Write a small machine diagnostic (exit category, counts, error) as private
     /// JSON (new path only). No passphrase, PMK or WEP key is ever included.
+    /// Use --json=PATH for names starting with a hyphen; "-" is a literal file, not stdout.
     #[arg(long, alias = "json")]
     diagnostic_json: Option<PathBuf>,
 }

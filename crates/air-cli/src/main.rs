@@ -119,6 +119,7 @@ enum Commands {
         max_targets: u32,
         /// Write a small machine diagnostic (exit category, counts, error) as
         /// private JSON (new path only). No password or PMK is ever included.
+        /// Use --json=PATH for names starting with a hyphen; "-" is a literal file, not stdout.
         #[arg(long, alias = "json")]
         diagnostic_json: Option<PathBuf>,
     },
@@ -167,7 +168,9 @@ fn main() -> anyhow::Result<()> {
                         if arg == "--diagnostic-json" || arg == "--json" {
                             path = args
                                 .get(index + 1)
-                                .filter(|value| !value.to_string_lossy().starts_with('-'))
+                                .filter(|value| {
+                                    *value == "-" || !value.to_string_lossy().starts_with('-')
+                                })
                                 .map(PathBuf::from);
                         } else if let Some(value) = arg.to_str().and_then(|s| {
                             s.strip_prefix("--diagnostic-json=")
@@ -177,17 +180,27 @@ fn main() -> anyhow::Result<()> {
                         }
                     }
                     let _ = error.print();
-                    return exit::run_with_diagnostic(
-                        path.as_deref(),
-                        kind,
-                        |_| exit::Category::Usage,
-                        |(): (), _| exit::Summary {
-                            counts: serde_json::json!({}),
-                            verification: (kind == "aircrack_diagnostic")
-                                .then_some("not_attempted"),
-                        },
-                        || Err(anyhow::anyhow!("invalid command arguments")),
-                    );
+                    let result = exit::Diagnostic::reserve(path.as_deref())
+                        .map_err(|error| (error, exit::USAGE))
+                        .and_then(|mut diagnostic| {
+                            diagnostic
+                                .write(
+                                    kind,
+                                    exit::Category::Usage,
+                                    exit::Summary {
+                                        counts: serde_json::json!({}),
+                                        verification: (kind == "aircrack_diagnostic")
+                                            .then_some("not_attempted"),
+                                    },
+                                    Some("invalid command arguments or configuration"),
+                                )
+                                .map_err(|error| (error, exit::INTERNAL))
+                        });
+                    if let Err((error, code)) = result {
+                        eprintln!("Error: {error:#}");
+                        std::process::exit(code);
+                    }
+                    std::process::exit(exit::USAGE);
                 }
             }
             error.exit();

@@ -58,6 +58,7 @@ pub struct SurveyArgs {
     export_csv: Option<PathBuf>,
     /// Write a small machine diagnostic (exit category, counts, error) as private
     /// JSON (new path only). The exit category is also the process exit code.
+    /// Use --json=PATH for names starting with a hyphen; "-" is a literal file, not stdout.
     #[arg(long, alias = "json")]
     diagnostic_json: Option<PathBuf>,
 }
@@ -117,7 +118,9 @@ fn classify(error: &anyhow::Error) -> Category {
         Category::PrivilegeOrDevice
     } else if has("is required") {
         Category::Usage
-    } else if has("raw 802.11") || has("radiotap") || has("pcap") || has("capture") && has("header")
+    } else if has("raw 802.11")
+        || has("radiotap")
+        || (has("pcap") || (has("capture") && has("header")))
     {
         Category::BadContainer
     } else if has("no 802.11 packets") {

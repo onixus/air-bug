@@ -44,6 +44,7 @@ fn check(command: &str, args: &[&str], code: i32, category: &str) -> serde_json:
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(code), "{output:?}");
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("Error: invalid command arguments"));
     let raw = std::fs::read_to_string(diagnostic).unwrap();
     // Deliberately use this sentinel in paths and credentials below.
     assert!(!raw.contains("secret-sentinel"), "{raw}");
@@ -97,6 +98,35 @@ fn argument_errors_use_usage_category_and_help_remains_successful() {
             .output()
             .unwrap();
         assert_eq!(output.status.code(), Some(64));
+    }
+}
+
+#[test]
+fn argument_error_diagnostics_support_hyphen_paths() {
+    for command in ["aircrack", "airdecap", "survey"] {
+        for flag in ["--json", "--diagnostic-json"] {
+            for (name, joined) in [("-", false), ("-summary.json", true)] {
+                let temp = Temp::new();
+                let mut process = Command::new(env!("CARGO_BIN_EXE_aircrack"));
+                process.current_dir(&temp.0).args([command, "--unknown"]);
+                if joined {
+                    process.arg(format!("{flag}={name}"));
+                } else {
+                    process.args([flag, name]);
+                }
+                let output = process.output().unwrap();
+                assert_eq!(output.status.code(), Some(64), "{output:?}");
+                let json: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(temp.path(name)).unwrap()).unwrap();
+                assert_eq!(json["exit_category"], "usage");
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                assert!(stderr.contains("unexpected argument"), "{stderr}");
+                assert!(
+                    !stderr.contains("Error: invalid command arguments"),
+                    "{stderr}"
+                );
+            }
+        }
     }
 }
 
