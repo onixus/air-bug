@@ -76,3 +76,28 @@ impl Theme {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Palette, DARK, LIGHT};
+
+    #[test]
+    fn palettes_contain_exactly_the_required_apex_tokens() {
+        for palette in [DARK, LIGHT] {
+            // An exhaustive pattern (no `..`) makes missing, renamed, or extra
+            // tokens a compile error, keeping both palettes on the exact contract.
+            let Palette {
+                bg_canvas: _,
+                surface_1: _,
+                surface_2: _,
+                border_control: _,
+                text_primary: _,
+                text_secondary: _,
+                accent: _,
+                focus_ring: _,
+                success: _,
+                success_subtle: _,
+            } = palette;
+        }
+    }
+}
