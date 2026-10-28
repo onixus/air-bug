@@ -1,5 +1,5 @@
-use crate::exit::Category;
 use air_crack::{engine::TargetSet, wordlist::Wordlist};
+use crate::exit::Category;
 use anyhow::{bail, Context};
 use clap::Args;
 use serde::{Deserialize, Serialize};
@@ -158,7 +158,7 @@ impl Session {
                 let state: Checkpoint =
                     serde_json::from_slice(&bytes).context("invalid checkpoint")?;
                 if state.version != 5 {
-                    bail!("unsupported checkpoint version; start a new session");
+                    return Err(anyhow::anyhow!("unsupported checkpoint version; start a new session").context(Category::Usage));
                 }
                 if state.identity != identity {
                     bail!("checkpoint input mismatch: capture, dictionary or network changed");
