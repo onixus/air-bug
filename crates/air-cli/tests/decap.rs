@@ -42,6 +42,13 @@ fn cli(input: &Path, output: &Path, extra: &[&str]) -> Output {
         .output()
         .unwrap()
 }
+fn aircrack(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_aircrack"))
+        .arg("aircrack")
+        .args(args)
+        .output()
+        .unwrap()
+}
 fn expected() -> serde_json::Value {
     serde_json::from_slice(&std::fs::read(fixture("decap-expected.json")).unwrap()).unwrap()
 }
@@ -760,4 +767,143 @@ fn fragmented_simple_packet_blocks_keep_unknown_timestamps_explicit() {
         expected()["ethernet_from_ap"].as_str().unwrap()
     );
     assert!(String::from_utf8_lossy(&result.stdout).contains("missing-timestamps=1"));
+}
+
+#[test]
+fn airdecap_diagnostic_reports_success_counts_without_secrets() {
+    let temp = Temp::new();
+    let output = temp.path("out.pcap");
+    let diag = temp.path("diag.json");
+    let result = cli(
+        &fixture("decap-open.pcap"),
+        &output,
+        &["--diagnostic-json", diag.to_str().unwrap()],
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(result.status.code(), Some(0));
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&diag).unwrap()).unwrap();
+    assert_eq!(v["schema_version"], 1);
+    assert_eq!(v["kind"], "airdecap_diagnostic");
+    assert_eq!(v["exit_category"], "success");
+    assert_eq!(v["exit_code"], 0);
+    assert!(v["error"].is_null());
+    assert_eq!(v["counts"]["data_frames"], 1);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&diag).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
+
+#[test]
+fn airdecap_diagnostic_records_bad_container_and_exit_code() {
+    let temp = Temp::new();
+    let output = temp.path("out.pcap");
+    let diag = temp.path("diag.json");
+    let result = cli(
+        &fixture("wpa2-ethernet.pcap"),
+        &output,
+        &["--diagnostic-json", diag.to_str().unwrap()],
+    );
+    assert_eq!(result.status.code(), Some(4));
+    assert!(!output.exists());
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&diag).unwrap()).unwrap();
+    assert_eq!(v["exit_category"], "bad_container");
+    assert_eq!(v["exit_code"], 4);
+    assert!(v["error"].as_str().unwrap().contains("raw 802.11"));
+}
+
+#[test]
+fn airdecap_diagnostic_refuses_to_overwrite_existing_path() {
+    let temp = Temp::new();
+    let output = temp.path("out.pcap");
+    let diag = temp.path("exists.json");
+    std::fs::write(&diag, b"keep").unwrap();
+    let result = cli(
+        &fixture("decap-open.pcap"),
+        &output,
+        &["--diagnostic-json", diag.to_str().unwrap()],
+    );
+    assert_eq!(result.status.code(), Some(64));
+    assert_eq!(std::fs::read(&diag).unwrap(), b"keep");
+}
+
+#[test]
+fn aircrack_diagnostic_reports_success_without_leaking_password() {
+    let temp = Temp::new();
+    let diag = temp.path("diag.json");
+    let result = aircrack(&[
+        "--capture",
+        fixture("wpa2-v3.pcap").to_str().unwrap(),
+        "--wordlist",
+        fixture("words.txt").to_str().unwrap(),
+        "--diagnostic-json",
+        diag.to_str().unwrap(),
+    ]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let raw = std::fs::read_to_string(&diag).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    assert_eq!(v["schema_version"], 1);
+    assert_eq!(v["kind"], "aircrack_diagnostic");
+    assert_eq!(v["exit_category"], "success");
+    assert_eq!(v["exit_code"], 0);
+    assert!(v["error"].is_null());
+    assert!(v["counts"]["networks"].as_u64().unwrap() >= 1);
+    assert!(
+        v["counts"]["handshake_sessions"].as_u64().unwrap()
+            + v["counts"]["pmkid_targets"].as_u64().unwrap()
+            >= 1
+    );
+    // The found passphrase is printed to stdout but must never reach the
+    // machine diagnostic.
+    assert!(
+        !raw.contains("horse"),
+        "diagnostic must not contain the password: {raw}"
+    );
+}
+
+#[test]
+fn aircrack_diagnostic_marks_password_not_found() {
+    let temp = Temp::new();
+    let diag = temp.path("diag.json");
+    let result = aircrack(&[
+        "--capture",
+        fixture("wpa2-v3.pcap").to_str().unwrap(),
+        "--wordlist",
+        fixture("wrong-words.txt").to_str().unwrap(),
+        "--diagnostic-json",
+        diag.to_str().unwrap(),
+    ]);
+    assert_eq!(result.status.code(), Some(2));
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&diag).unwrap()).unwrap();
+    assert_eq!(v["exit_category"], "password_not_found");
+    assert_eq!(v["exit_code"], 2);
+    assert!(v["error"].as_str().unwrap().contains("password not found"));
+}
+
+#[test]
+fn aircrack_diagnostic_marks_no_supported_target() {
+    let temp = Temp::new();
+    let diag = temp.path("diag.json");
+    let result = aircrack(&[
+        "--capture",
+        fixture("decap-open.pcap").to_str().unwrap(),
+        "--diagnostic-json",
+        diag.to_str().unwrap(),
+    ]);
+    assert_eq!(result.status.code(), Some(3));
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&diag).unwrap()).unwrap();
+    assert_eq!(v["exit_category"], "no_supported_target");
+    assert_eq!(v["exit_code"], 3);
 }

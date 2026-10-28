@@ -1044,3 +1044,6 @@ regulatory restrictions still apply; live 6 GHz tuning has not been hardware
 validated in this project. Parsing follows the Linux
 [802.11 RNR structures](https://github.com/torvalds/linux/blob/master/include/linux/ieee80211.h)
 and [RNR iteration](https://github.com/torvalds/linux/blob/master/net/wireless/scan.c).
+
+For stable offline exit codes and optional `--diagnostic-json` / `--json` summaries,
+see the [CLI machine contract](docs/CLI_MACHINE_CONTRACT.md).

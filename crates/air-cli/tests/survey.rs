@@ -194,6 +194,78 @@ fn export_refuses_overwrite_and_cleans_reserved_files_after_failure() {
     assert!(!std::path::Path::new(&json).exists());
 }
 #[test]
+fn diagnostic_json_reports_success_category_and_counts() {
+    let temp = TempDir::new();
+    let diag = temp.path("diag.json");
+    let result = cli(&[
+        "survey",
+        "--read",
+        &fixture("wpa2-radiotap.pcap"),
+        "--diagnostic-json",
+        &diag,
+    ]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(result.status.code(), Some(0));
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&diag).unwrap()).unwrap();
+    assert_eq!(v["schema_version"], 1);
+    assert_eq!(v["kind"], "survey_diagnostic");
+    assert_eq!(v["exit_category"], "success");
+    assert_eq!(v["exit_code"], 0);
+    assert!(v["error"].is_null());
+    assert_eq!(v["counts"]["access_points"], 1);
+    assert_eq!(v["counts"]["handshakes"], 1);
+    assert!(v["counts"]["packets"].as_u64().unwrap() >= 1);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&diag).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
+
+#[test]
+fn diagnostic_json_records_bad_container_and_exit_code_on_failure() {
+    let temp = TempDir::new();
+    let diag = temp.path("diag.json");
+    let result = cli(&[
+        "survey",
+        "--read",
+        &fixture("wpa2-ethernet.pcap"),
+        "--diagnostic-json",
+        &diag,
+    ]);
+    assert_eq!(result.status.code(), Some(4));
+    // The diagnostic is written even when the survey fails.
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&diag).unwrap()).unwrap();
+    assert_eq!(v["schema_version"], 1);
+    assert_eq!(v["exit_category"], "bad_container");
+    assert_eq!(v["exit_code"], 4);
+    assert!(v["error"].as_str().unwrap().contains("raw 802.11"));
+}
+
+#[test]
+fn diagnostic_json_refuses_to_overwrite_existing_path() {
+    let temp = TempDir::new();
+    let diag = temp.path("exists.json");
+    std::fs::write(&diag, b"keep").unwrap();
+    let result = cli(&[
+        "survey",
+        "--read",
+        &fixture("wpa2-radiotap.pcap"),
+        "--diagnostic-json",
+        &diag,
+    ]);
+    assert_eq!(result.status.code(), Some(64));
+    assert_eq!(std::fs::read(&diag).unwrap(), b"keep");
+}
+
+#[test]
 fn filtered_exports_have_no_evidence_from_other_networks() {
     let temp = TempDir::new();
     let json = temp.path("snapshot.json");

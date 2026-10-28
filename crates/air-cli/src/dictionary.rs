@@ -1,3 +1,4 @@
+use crate::exit::Category;
 use air_crack::{engine::TargetSet, wordlist::Wordlist};
 use anyhow::{bail, Context};
 use clap::Args;
@@ -257,7 +258,9 @@ pub fn run(
     let mut words = if stdin {
         Wordlist::from_reader(BufReader::new(std::io::stdin()))
     } else {
-        let mut file = File::open(path).context("cannot open wordlist")?;
+        let mut file = File::open(path)
+            .context("cannot open wordlist")
+            .context(Category::Usage)?;
         if !file.metadata()?.is_file() {
             bail!("wordlist must be a regular file; use --wordlist - for stdin");
         }
@@ -282,7 +285,8 @@ pub fn run(
     for _ in 0..completed {
         words
             .next()
-            .context("checkpoint position exceeds dictionary length")??;
+            .context("checkpoint position exceeds dictionary length")?
+            .context(Category::Usage)?;
     }
     let stop = Stop::new(!stdin)?;
     let mut cache = options
@@ -290,7 +294,8 @@ pub fn run(
         .as_ref()
         .map(|path| air_crack::cache::Cache::open(path, options.pmk_cache_mib.unwrap_or(64)))
         .transpose()
-        .context("cannot open PMK cache")?;
+        .context("cannot open PMK cache")
+        .context(Category::Internal)?;
     let pool = options
         .threads
         .map(|threads| {
@@ -320,7 +325,7 @@ pub fn run(
                 report(completed);
             }
             report_cache(cache.as_ref());
-            bail!("verification paused after {completed} dictionary lines; last completed batch checkpointed when --session/--resume is used");
+            return Err(anyhow::anyhow!("verification paused after {completed} dictionary lines; last completed batch checkpointed when --session/--resume is used").context(Category::Partial));
         }
         let size = options
             .max_candidates
@@ -329,7 +334,8 @@ pub fn run(
             .by_ref()
             .take(size)
             .collect::<std::io::Result<Vec<_>>>()
-            .context("wordlist: cannot read wordlist")?;
+            .context("wordlist: cannot read wordlist")
+            .context(Category::Usage)?;
         if batch.is_empty() {
             if let Some(s) = &mut session {
                 s.save(completed, true)?;
@@ -354,7 +360,8 @@ pub fn run(
                 work()
             }
         }
-        .context("PMK cache batch failed; checkpoint not advanced")?;
+        .context("PMK cache batch failed; checkpoint not advanced")
+        .context(Category::Internal)?;
         if let Some((index, pass)) = found {
             // Keep the previous batch position so a resumed successful run replays
             // the matching batch. No password or candidate is saved on disk.

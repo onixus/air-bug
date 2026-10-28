@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>aircrack-rs · APEX Wi-Fi Observatory</title>
+<style>
+:root {
+  color-scheme: dark;
+  --apex-bg: #0b0f14; --apex-accent: #4f8cff; --apex-success: #3dd68c;
+  --apex-warning: #f5a524; --apex-danger: #ff5d5d; --apex-muted: #8a94a6;
+  --apex-border: #1f2633; --apex-card: #121826; --apex-text: #edf2fa;
+  --apex-control: #637189; --apex-tint: #17253e; --apex-on-accent: #08111f;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --apex-bg: #f3f6fb; --apex-card: #ffffff; --apex-text: #172338;
+  --apex-muted: #536079; --apex-border: #d8dfeb; --apex-control: #65758b;
+  --apex-accent: #245bc3; --apex-success: #087747; --apex-warning: #885100;
+  --apex-danger: #c02e38; --apex-tint: #eaf0fc; --apex-on-accent: #ffffff;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--apex-bg); color: var(--apex-text); font: 14px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+button, input, select { font: inherit; }
+button, select, input { color: var(--apex-text); background: var(--apex-card); border: 1px solid var(--apex-control); border-radius: 8px; }
+button, select { min-height: 44px; padding: 9px 13px; }
+button { cursor: pointer; }
+button:hover { background: var(--apex-tint); }
+:focus-visible { outline: 2px solid var(--apex-accent); outline-offset: 4px; }
+a { color: var(--apex-accent); text-underline-offset: 4px; }
+.skip { position: absolute; top: -100px; left: 20px; padding: 12px; background: var(--apex-card); z-index: 5; }
+.skip:focus { top: 12px; }
+.mono, .eyebrow, .metric-value, td.numeric { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.muted { color: var(--apex-muted); }
+.eyebrow { color: var(--apex-muted); text-transform: uppercase; font-size: 11px; letter-spacing: .12em; }
+.shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { border-right: 1px solid var(--apex-border); padding: 28px 20px; display: flex; flex-direction: column; gap: 32px; }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 700; letter-spacing: -.6px; }
+.brand-mark { width: 34px; height: 38px; display: grid; place-items: center; border: 1px solid var(--apex-accent); border-radius: 12px 12px 16px 16px; color: var(--apex-accent); }
+.brand small { display: block; font: 10px ui-monospace, monospace; letter-spacing: .14em; color: var(--apex-muted); }
+.nav-label { display: block; padding: 11px 12px; margin: 6px 0; color: var(--apex-muted); }
+.nav-label.active { color: var(--apex-accent); background: var(--apex-tint); border-radius: 8px; border-left: 2px solid var(--apex-accent); }
+.sidebar-note { margin-top: auto; padding-top: 24px; border-top: 1px solid var(--apex-border); font-size: 12px; color: var(--apex-muted); }
+.sidebar-note strong { color: var(--apex-success); display: block; margin-bottom: 8px; }
+main { min-width: 0; padding: 28px clamp(18px, 3vw, 44px); max-width: 1680px; width: 100%; margin: auto; }
+.topbar, .heading, .toolbar, .panel-head, .row-between { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.topbar { padding-bottom: 26px; font-size: 12px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.demo-tag { color: var(--apex-warning); border: 1px solid var(--apex-warning); padding: 3px 8px; border-radius: 5px; font: 11px ui-monospace, monospace; white-space: nowrap; }
+h1 { font-size: clamp(27px, 3vw, 36px); line-height: 1.2; letter-spacing: -1.2px; margin: 8px 0 10px; }
+h2 { font-size: 16px; margin: 0; } h3 { font-size: 14px; }
+p { margin: 8px 0; }
+.heading { align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; }
+.primary { background: var(--apex-accent); color: var(--apex-on-accent); border-color: var(--apex-accent); font-weight: 650; }
+.primary:hover { background: var(--apex-accent); filter: brightness(1.08); }
+.session { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding: 14px 18px; background: var(--apex-card); border: 1px solid var(--apex-border); border-radius: 10px; font-size: 12px; }
+.session strong { color: var(--apex-success); }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 20px 0 26px; }
+.metric { padding: 18px 20px; border: 1px solid var(--apex-border); background: var(--apex-card); border-radius: 12px; }
+.metric-value { font-size: 30px; line-height: 1.3; margin: 8px 0; letter-spacing: -1px; }
+.metric p { font-size: 12px; color: var(--apex-muted); margin: 0; }
+.success { color: var(--apex-success); } .warning { color: var(--apex-warning); } .danger { color: var(--apex-danger); }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.panel { border: 1px solid var(--apex-border); background: var(--apex-card); border-radius: 12px; overflow: hidden; min-width: 0; }
+.panel-head { padding: 18px 20px; border-bottom: 1px solid var(--apex-border); }
+.tabs { display: flex; gap: 7px; }
+.tabs button { border-color: transparent; font-weight: 600; }
+.tabs button[aria-pressed="true"] { background: var(--apex-tint); color: var(--apex-accent); border-color: var(--apex-accent); }
+.toolbar { padding: 16px 20px; flex-wrap: wrap; }
+.search { flex: 1; min-width: 160px; }
+.search label, .filter label { display: block; font-size: 11px; color: var(--apex-muted); margin-bottom: 5px; }
+.search input { min-height: 44px; padding: 9px 12px; width: 100%; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; white-space: nowrap; font-size: 12px; }
+caption { text-align: left; color: var(--apex-muted); padding: 0 20px 12px; font-size: 12px; }
+th { text-align: left; color: var(--apex-muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; padding: 12px 14px; background: var(--apex-bg); }
+td { padding: 15px 14px; border-bottom: 1px solid var(--apex-border); }
+td:first-child, th:first-child { padding-left: 20px; }
+tr.selected { background: var(--apex-tint); }
+.name { font-size: 13px; font-weight: 600; }
+.sub { display: block; color: var(--apex-muted); font: 10px/1.6 ui-monospace, monospace; }
+.inspect { color: var(--apex-accent); padding: 2px 4px; border: 0; background: transparent; text-align: left; min-height: 36px; }
+.badge { display: inline-block; padding: 3px 7px; border: 1px solid currentColor; border-radius: 5px; font: 10px/1.6 ui-monospace, monospace; }
+.signal { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; margin-right: 6px; vertical-align: middle; }
+.signal i { display: block; width: 3px; background: var(--apex-border); border: 1px solid var(--apex-muted); }
+.signal i:nth-child(1) { height: 4px; } .signal i:nth-child(2) { height: 8px; } .signal i:nth-child(3) { height: 12px; } .signal i:nth-child(4) { height: 16px; }
+.signal i.on { background: var(--apex-success); border-color: var(--apex-success); }
+.table-foot { padding: 14px 20px; font-size: 11px; color: var(--apex-muted); }
+.inspector { padding: 20px; }
+.inspector h2 { font-size: 21px; margin: 14px 0 4px; letter-spacing: -.4px; overflow-wrap: anywhere; }
+.inspector .mono { overflow-wrap: anywhere; font-size: 12px; }
+dl { margin: 22px 0; } dl div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--apex-border); font-size: 12px; } dt { color: var(--apex-muted); } dd { margin: 0; text-align: right; }
+.callout { background: var(--apex-bg); border-left: 2px solid var(--apex-warning); padding: 12px; border-radius: 0 8px 8px 0; font-size: 12px; }
+.callout p { color: var(--apex-muted); }
+.evidence-list { margin: 14px 0 0; padding-left: 18px; color: var(--apex-muted); font-size: 12px; }
+.bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+.bottom .panel { padding: 20px; }
+.channels { display: flex; gap: 12px; align-items: flex-end; height: 96px; margin-top: 14px; }
+.channel { flex: 1; display: flex; flex-direction: column; align-items: center; font: 11px ui-monospace, monospace; color: var(--apex-muted); gap: 4px; }
+.channel .bar { width: 100%; max-width: 50px; background: var(--apex-accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.bottom p { color: var(--apex-muted); font-size: 12px; }
+.coverage { margin-top: 16px; height: 6px; background: var(--apex-border); border-radius: 8px; overflow: hidden; }
+.coverage span { display: block; width: 41.6667%; background: var(--apex-warning); height: 100%; }
+footer { padding: 24px 0 0; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--apex-muted); }
+[hidden] { display: none !important; }
+@media (max-width: 1250px) { .workspace { grid-template-columns: minmax(0, 1fr); } .inspector { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; } .inspector .evidence-block { grid-column: 2; grid-row: 1 / 4; } }
+@media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .sidebar { padding: 16px 20px; border-right: 0; border-bottom: 1px solid var(--apex-border); } .sidebar nav, .sidebar-note { display: none; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } main { padding-top: 18px; } }
+@media (max-width: 560px) { .topbar { align-items: flex-start; } .topbar-right { flex-direction: column; align-items: flex-end; gap: 8px; } .bottom { grid-template-columns: 1fr; } .metric { padding: 14px; } .metric .eyebrow { letter-spacing: .03em; font-size: 10px; } .panel-head { padding: 14px; flex-wrap: wrap; } .toolbar { padding: 14px; } .inspector { display: block; } .session { gap: 8px 18px; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">К содержимому</a>
+<div class="shell">
+<aside class="sidebar" aria-label="Контекст макета">
+  <div class="brand"><span class="brand-mark" aria-hidden="true">≋</span><div>aircrack-rs<small>APEX / OBSERVATORY</small></div></div>
+  <nav aria-label="Карта продукта · статический эскиз">
+    <div class="eyebrow">Рабочее пространство</div>
+    <span class="nav-label active" aria-current="page">◉ &nbsp; Обзор эфира</span>
+    <span class="nav-label">⌁ &nbsp; Evidence</span>
+    <span class="nav-label">▤ &nbsp; Отчёты</span>
+    <span class="nav-label">◇ &nbsp; Shapoclyack</span>
+    <p class="muted" style="font-size:11px;padding:0 12px">Карта разделов, без переходов</p>
+  </nav>
+  <div class="sidebar-note"><strong>✓ Passive by design</strong>Наблюдение без передачи кадров.<br>Локальный анализ. Явные границы.</div>
+</aside>
+<main id="main">
+  <div class="topbar"><span class="muted">EASM &nbsp;/&nbsp; DEMO LAB &nbsp;/&nbsp; Wi-Fi</span><div class="topbar-right"><span class="demo-tag">SYNTHETIC DEMO</span><button id="theme" type="button" aria-pressed="false">Светлая тема</button></div></div>
+  <header class="heading"><div><div class="eyebrow">Wireless attack surface</div><h1>Эфир становится понятным.</h1><p class="muted">Точки доступа, клиенты и доказательства в одном поле зрения.</p></div><button id="export" class="primary" type="button">↓ Экспорт демо JSON</button></header>
+  <section class="session" aria-label="Источник наблюдений"><strong>◉ OFFLINE SNAPSHOT</strong><span>Источник <span class="mono">demo-survey.pcap</span></span><span>Сенсор <span class="mono">lab-01</span> · mon0</span><span>Канал <b>6 / 2.4 GHz</b></span><span class="muted">Снимок 28.10.2026 · 10:42 UTC</span></section>
+  <div class="metrics">
+    <section class="metric"><div class="eyebrow">Точки доступа</div><div class="metric-value">06</div><p>В синтетическом снимке</p></section>
+    <section class="metric"><div class="eyebrow">Клиенты</div><div class="metric-value">04</div><p>Наблюдаемые адреса, не люди</p></section>
+    <section class="metric"><div class="eyebrow">AP с evidence</div><div class="metric-value success">03</div><p>Структурные индикаторы</p></section>
+    <section class="metric"><div class="eyebrow">Требуют разбора</div><div class="metric-value warning">02</div><p>Настройки · без risk scoring</p></section>
+  </div>
+  <div class="workspace">
+    <section class="panel" aria-label="Инвентарь эфира">
+      <div class="panel-head"><div class="tabs" role="group" aria-label="Тип инвентаря"><button type="button" id="aps" aria-pressed="true">Точки доступа · 6</button><button type="button" id="clients" aria-pressed="false">Клиенты · 4</button></div><span class="eyebrow">Локальный снимок</span></div>
+      <div class="toolbar"><div class="search"><label for="query">Поиск SSID / MAC / защиты</label><input id="query" type="search" placeholder="Например, Lab или 02:00…" autocomplete="off" maxlength="128"></div><div class="filter"><label for="band">Диапазон</label><select id="band"><option value="all">Все диапазоны</option><option value="2.4">2.4 GHz</option><option value="5">5 GHz</option><option value="6">6 GHz</option></select></div></div>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Таблица инвентаря, прокрутка по горизонтали"><table><caption id="caption">AP · объявленные настройки, не проверка доступа</caption><thead id="table-head"></thead><tbody id="rows"></tbody></table></div>
+      <div class="table-foot" id="result-count" role="status" aria-live="polite"></div>
+    </section>
+    <aside class="panel inspector" aria-label="Сведения выбранного объекта">
+      <div><div class="eyebrow">Evidence inspector</div><h2 id="detail-name">Lab-Staff</h2><span class="mono muted" id="detail-id">02:00:00:00:01:01</span></div>
+      <dl><div><dt>Принадлежность</dt><dd id="detail-owner">Demo Lab · fixture</dd></div><div><dt>Источник</dt><dd>Синтетический PCAP</dd></div><div><dt>Evidence ID</dt><dd class="mono" id="detail-evidence">demo-ev-001</dd></div><div><dt>Пароль / MIC</dt><dd>Не проверялись</dd></div></dl>
+      <div class="evidence-block"><h3 id="detail-label">HS + PMKID · наблюдалось</h3><div class="callout"><strong class="warning">△ Нужна интерпретация</strong><p id="detail-note">Структурные данные не подтверждают правильность пароля, MIC или доступ к сети.</p></div><ul class="evidence-list"><li>Байты и происхождение важнее значка.</li><li>Пропуск наблюдения ≠ отсутствие события.</li><li>Пароли и payload не входят в экспорт.</li></ul></div>
+    </aside>
+  </div>
+  <div class="bottom">
+    <section class="panel"><div class="row-between"><h2>Карта каналов</h2><span class="eyebrow">AP / snapshot</span></div><div class="channels" role="img" aria-label="Число AP по каналу: канал 1 — 1, 6 — 2, 36 — 1, 44 — 1, 6 GHz канал 5 — 1"><div class="channel"><span>1</span><div class="bar" style="height:25px"></div><span>1</span></div><div class="channel"><span>2</span><div class="bar" style="height:50px"></div><span>6</span></div><div class="channel"><span>1</span><div class="bar" style="height:25px"></div><span>36</span></div><div class="channel"><span>1</span><div class="bar" style="height:25px"></div><span>44</span></div><div class="channel"><span>1</span><div class="bar" style="height:25px"></div><span>5*</span></div></div><p>* 6 GHz. Число AP в наборе, не загрузка эфира. Набор объединяет разные окна наблюдения.</p></section>
+    <section class="panel"><div class="row-between"><h2>Границы наблюдения</h2><span class="badge warning">PARTIAL</span></div><p>В демо учтено 5 из 12 запланированных каналов. Показатель иллюстративный; текущие фильтры таблицы его не меняют.</p><div class="coverage" aria-hidden="true"><span></span></div><p>Соседние сети не становятся активами организации автоматически. Backend Shapoclyack не подключён.</p><span class="badge">Бюджет 300 s</span> <span class="badge">Drops: неизвестно</span></section>
+  </div>
+  <footer><span>APEX CONCEPT · локально · без radio API и сетевых запросов</span><span>Tab → фокус &nbsp; Enter → действие &nbsp; <a href="../VISION_MODERN_AIRCRACK.ru.md">Архитектурное видение ↗</a></span></footer>
+  <p id="export-status" class="muted" role="status" aria-live="polite"></p>
+  <noscript><p>Для таблицы, поиска и переключения темы нужен JavaScript. Это автономный макет с вымышленными данными.</p></noscript>
+</main>
+</div>
+<script>
+'use strict';
+// All addresses are locally administered synthetic identifiers. No radio or backend access.
+const aps = [
+ {name:'Lab-Staff',mac:'02:00:00:00:01:01',band:'2.4',ch:6,rssi:-42,security:'WPA2-PSK',evidence:'HS + PMKID',status:'Наблюдалось',tone:'success',owner:'Demo Lab · fixture',id:'demo-ev-001'},
+ {name:'Lab-Guest',mac:'02:00:00:00:01:02',band:'2.4',ch:6,rssi:-58,security:'Open',evidence:'—',status:'Открытая сеть',tone:'danger',owner:'Demo Lab · fixture',id:'demo-obs-002'},
+ {name:'Lab-Enterprise',mac:'02:00:00:00:01:03',band:'5',ch:36,rssi:-51,security:'WPA2-EAP',evidence:'FT',status:'Метаданные',tone:'success',owner:'Demo Lab · fixture',id:'demo-ev-003'},
+ {name:'Unattributed-AP',mac:'02:00:00:00:01:04',band:'5',ch:44,rssi:-74,security:'WPA / WPA2',evidence:'HS',status:'Смешанный AKM',tone:'warning',owner:'Не установлена',id:'demo-ev-004'},
+ {name:'Lab-6E',mac:'02:00:00:00:01:05',band:'6',ch:5,rssi:-65,security:'WPA3-SAE',evidence:'—',status:'Объявлено',tone:'',owner:'Demo Lab · fixture',id:'demo-obs-005'},
+ {name:'SSID не предоставлен',mac:'02:00:00:00:01:06',band:'2.4',ch:1,rssi:null,security:'Unknown',evidence:'—',status:'Недостаточно данных',tone:'',owner:'Не установлена',id:'demo-obs-006'}
+];
+const clients = [
+ {name:'Клиент 01',mac:'02:00:00:00:02:01',ap:'Lab-Staff',band:'2.4',ch:6,rssi:-49,security:'Не оценивалась',evidence:'—',status:'Кадр к AP',tone:'',owner:'Не установлена',id:'demo-sta-001'},
+ {name:'Клиент 02',mac:'02:00:00:00:02:02',ap:'Lab-Guest',band:'2.4',ch:6,rssi:-62,security:'Не оценивалась',evidence:'—',status:'Кадр к AP',tone:'',owner:'Не установлена',id:'demo-sta-002'},
+ {name:'Клиент 03',mac:'02:00:00:00:02:03',ap:'Lab-Enterprise',band:'5',ch:36,rssi:-57,security:'Не оценивалась',evidence:'—',status:'Кадр к AP',tone:'',owner:'Не установлена',id:'demo-sta-003'},
+ {name:'Клиент 04',mac:'02:00:00:00:02:04',ap:'Не установлен',band:'5',ch:44,rssi:null,security:'Unknown',evidence:'—',status:'Только наблюдение',tone:'',owner:'Не установлена',id:'demo-sta-004'}
+];
+const $ = id => document.getElementById(id);
+let view = 'aps';
+let selected = aps[0].mac;
+function element(tag, text, className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
+function inspect(item) {
+ selected = item.mac;
+ $('detail-name').textContent = item.name; $('detail-id').textContent = item.mac;
+ $('detail-owner').textContent = item.owner; $('detail-evidence').textContent = item.id;
+ $('detail-label').textContent = item.evidence === '—' ? 'Нет структурного индикатора' : item.evidence + ' · наблюдалось';
+ $('detail-note').textContent = item.ap ? 'Адрес клиента и кадр к AP не доказывают личность, принадлежность или завершённую аутентификацию.' : item.evidence === 'FT' ? 'FT-метаданные не доказывают завершённый роуминг или успешную аутентификацию.' : 'Структурные данные не подтверждают правильность пароля, MIC или доступ к сети.';
+ document.querySelectorAll('#rows tr').forEach(row => row.classList.toggle('selected', row.dataset.mac === selected));
+ document.querySelectorAll('#rows button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mac === selected)));
+}
+function render() {
+ const isAP = view === 'aps';
+ const query = $('query').value.toLocaleLowerCase(); const band = $('band').value;
+ const data = (isAP ? aps : clients).filter(item => (band === 'all' || item.band === band) && [item.name,item.mac,item.security,item.ap || ''].some(value => value.toLocaleLowerCase().includes(query)));
+ $('table-head').replaceChildren(); const header = element('tr');
+ [isAP ? 'Точка доступа / BSSID' : 'Клиент / MAC', 'Канал', 'RSSI · dBm', isAP ? 'Защита' : 'Последний AP', 'Evidence', 'Наблюдение'].forEach(text => { const th = element('th',text); th.scope = 'col'; header.append(th); });
+ $('table-head').append(header); $('rows').replaceChildren();
+ data.forEach(item => {
+  const row = element('tr'); row.dataset.mac = item.mac; row.classList.toggle('selected', item.mac === selected);
+  const nameCell = element('td'); const button = element('button', item.name, 'inspect name'); button.type = 'button'; button.dataset.mac = item.mac; button.setAttribute('aria-label', 'Evidence: ' + item.name + ', ' + item.mac); button.setAttribute('aria-pressed',String(item.mac === selected)); button.addEventListener('click', () => inspect(item)); nameCell.append(button,element('span',item.mac,'sub')); row.append(nameCell);
+  row.append(element('td',item.ch + ' · ' + item.band + 'G','numeric'));
+  const signalCell = element('td',undefined,'numeric');
+  const signal = element('span',undefined,'signal'); signal.setAttribute('aria-hidden','true');
+  const strength = item.rssi === null ? 0 : item.rssi >= -50 ? 4 : item.rssi >= -60 ? 3 : item.rssi >= -70 ? 2 : 1;
+  for (let i=0;i<4;i++) signal.append(element('i',undefined,i < strength ? 'on' : ''));
+  signalCell.append(signal,document.createTextNode(item.rssi === null ? '?' : String(item.rssi))); row.append(signalCell);
+  row.append(element('td',isAP ? item.security : item.ap));
+  const evidenceCell = element('td'); evidenceCell.append(element('span',item.evidence,'badge ' + (item.evidence !== '—' ? 'success' : 'muted'))); row.append(evidenceCell,element('td',item.status,item.tone)); $('rows').append(row);
+ });
+ if (!data.length) { const row = element('tr'); const cell = element('td','Нет совпадений. Измените поиск или диапазон.','muted'); cell.colSpan=6; row.append(cell); $('rows').append(row); }
+ $('caption').textContent = isAP ? 'AP · объявленные настройки, не проверка доступа' : 'Клиенты · последний наблюдаемый AP, не подтверждение сессии';
+ $('result-count').textContent = 'Показано ' + data.length + ' из ' + (isAP ? aps.length : clients.length) + ' · синтетические данные · HS / FT / PMKID ≠ проверенный пароль';
+}
+for (const id of ['aps','clients']) $(id).addEventListener('click',()=>{view=id; for (const other of ['aps','clients']) $(other).setAttribute('aria-pressed',String(other===id)); inspect((id==='aps'?aps:clients)[0]); render();});
+$('query').addEventListener('input',render); $('band').addEventListener('change',render);
+$('theme').addEventListener('click',()=>{const light=document.documentElement.dataset.theme!=='light';document.documentElement.dataset.theme=light?'light':'dark';$('theme').textContent=light?'Тёмная тема':'Светлая тема';$('theme').setAttribute('aria-pressed',String(light));});
+$('export').addEventListener('click',()=>{
+ const payload = {mockup:true,schema:'apex-demo-only/v1',source:'synthetic',observed_at:'2026-10-28T10:42:00Z',access_points:aps,clients};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+ const link=element('a'); link.href=url;link.download='aircrack-apex-synthetic-demo.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ $('export-status').textContent='Подготовлен полный демо-набор JSON (6 AP, 4 клиента), независимо от фильтра. Это не формат production survey.';
+});
+render();
+</script>
+</body>
+</html>
